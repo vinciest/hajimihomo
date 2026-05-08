@@ -8,7 +8,7 @@ import { CustomGroups } from './CustomGroups.js'
 const app = document.getElementById('app')
 
 app.innerHTML = `
-  <!-- ── Always-visible: kernel + subs + features ───────────────────────── -->
+  <!-- ── Always-visible: kernel + subs ─────────────────────────────────────── -->
   <div class="section">
     <label>内核 / 输出格式</label>
     <select id="kernel">
@@ -23,24 +23,13 @@ app.innerHTML = `
     <textarea id="subs" placeholder="https://your-subscription-url/...&#10;https://backup-subscription-url/..."></textarea>
   </div>
 
-  <div class="section">
-    <label>功能开关</label>
-    <div style="display:flex;gap:1rem;flex-wrap:wrap;margin-top:0.4rem">
-      <label class="cat-item"><input type="checkbox" id="feat-ads" checked> 广告拦截</label>
-      <label class="cat-item"><input type="checkbox" id="feat-tracking"> 追踪拦截</label>
-      <label class="cat-item"><input type="checkbox" id="feat-quic"> 屏蔽 QUIC</label>
-      <label class="cat-item"><input type="checkbox" id="feat-tun"> TUN 模式</label>
-      <label class="cat-item"><input type="checkbox" id="feat-dashboard"> 控制面板（:9090）</label>
-    </div>
-  </div>
-
   <!-- ── Mode toggle ──────────────────────────────────────────────────────── -->
   <div class="mode-toggle section">
     <button id="mode-simple" class="active">📋 简单模式</button>
     <button id="mode-advanced">⚙️ 高级模式</button>
   </div>
 
-  <!-- ── Simple mode: preset only ────────────────────────────────────────── -->
+  <!-- ── Simple mode: preset + blocking toggles ──────────────────────────── -->
   <div id="simple-mode">
     <div class="section">
       <label>预设</label>
@@ -48,9 +37,17 @@ app.innerHTML = `
         <option value="custom">自定义</option>
       </select>
     </div>
+    <div class="section">
+      <label>拦截规则</label>
+      <div style="display:flex;gap:1rem;flex-wrap:wrap;margin-top:0.4rem">
+        <label class="cat-item"><input type="checkbox" id="feat-ads" checked> 广告拦截</label>
+        <label class="cat-item"><input type="checkbox" id="feat-tracking"> 追踪拦截</label>
+        <label class="cat-item"><input type="checkbox" id="feat-quic"> 屏蔽 QUIC</label>
+      </div>
+    </div>
   </div>
 
-  <!-- ── Advanced mode: output options + builder ─────────────────────────── -->
+  <!-- ── Advanced mode: output options + infra toggles + builder ─────────── -->
   <div id="advanced-mode" style="display:none">
     <div class="adv-opts-grid section">
       <div>
@@ -87,11 +84,21 @@ app.innerHTML = `
         <label>排除节点关键词（正则）</label>
         <input id="region-excludes" type="text" placeholder="例: 5x|10x|0.5x" />
       </div>
-      <div>
-        <label>负载均衡</label>
-        <div style="padding-top:0.55rem">
-          <label class="cat-item" id="feat-lb-wrap"><input type="checkbox" id="feat-lb"> 启用（需高级拓扑）</label>
-        </div>
+    </div>
+    <div class="section">
+      <label>拦截规则</label>
+      <div style="display:flex;gap:1rem;flex-wrap:wrap;margin-top:0.4rem">
+        <label class="cat-item"><input type="checkbox" id="feat-ads-adv" checked> 广告拦截</label>
+        <label class="cat-item"><input type="checkbox" id="feat-tracking-adv"> 追踪拦截</label>
+        <label class="cat-item"><input type="checkbox" id="feat-quic-adv"> 屏蔽 QUIC</label>
+        <label class="cat-item" id="feat-lb-wrap"><input type="checkbox" id="feat-lb"> 负载均衡</label>
+      </div>
+    </div>
+    <div class="section">
+      <label>配置选项</label>
+      <div style="display:flex;gap:1rem;flex-wrap:wrap;margin-top:0.4rem">
+        <label class="cat-item"><input type="checkbox" id="feat-tun"> TUN 模式</label>
+        <label class="cat-item"><input type="checkbox" id="feat-dashboard"> 控制面板（:9090）</label>
       </div>
     </div>
 
@@ -151,16 +158,37 @@ function applyPreset(name) {
   if (!data) return
   simpleGroups = new Set(data.groups || [])
 
-  // Sync topology and features from preset (advanced mode uses these)
+  // Sync topology from preset into advanced mode selectors
   const topology = document.getElementById('topology')
   if (topology && data.topology) topology.value = data.topology
+
+  // Sync blocking toggles — keep simple/advanced in sync
   if (data.features) {
-    document.getElementById('feat-ads').checked      = !!data.features.ads_block
-    document.getElementById('feat-tracking').checked = !!data.features.tracking_block
-    document.getElementById('feat-quic').checked     = !!data.features.quic_block
-    document.getElementById('feat-lb').checked       = !!data.features.load_balance
+    const ads      = !!data.features.ads_block
+    const tracking = !!data.features.tracking_block
+    const quic     = !!data.features.quic_block
+    document.getElementById('feat-ads').checked         = ads
+    document.getElementById('feat-tracking').checked    = tracking
+    document.getElementById('feat-quic').checked        = quic
+    document.getElementById('feat-ads-adv').checked     = ads
+    document.getElementById('feat-tracking-adv').checked = tracking
+    document.getElementById('feat-quic-adv').checked    = quic
+    document.getElementById('feat-lb').checked          = !!data.features.load_balance
   }
 }
+
+// Keep simple ↔ advanced blocking toggles in sync
+function _syncBlocking(srcId, dstId) {
+  const src = document.getElementById(srcId)
+  const dst = document.getElementById(dstId)
+  if (src && dst) src.addEventListener('change', () => { dst.checked = src.checked })
+}
+_syncBlocking('feat-ads',      'feat-ads-adv')
+_syncBlocking('feat-ads-adv',  'feat-ads')
+_syncBlocking('feat-tracking', 'feat-tracking-adv')
+_syncBlocking('feat-tracking-adv', 'feat-tracking')
+_syncBlocking('feat-quic',     'feat-quic-adv')
+_syncBlocking('feat-quic-adv', 'feat-quic')
 
 // ── event listeners ───────────────────────────────────────────────────────────
 
@@ -205,13 +233,16 @@ document.getElementById('mode-advanced').addEventListener('click', () => {
 document.getElementById('generate').addEventListener('click', () => {
   const kernel = document.getElementById('kernel').value
   const subs   = document.getElementById('subs').value.trim().split('\n').filter(Boolean)
+
+  // Blocking toggles: read from whichever mode is active (they're kept in sync)
   const features = {
-    ads_block:       document.getElementById('feat-ads').checked,
-    tracking_block:  document.getElementById('feat-tracking').checked,
-    quic_block:      document.getElementById('feat-quic').checked,
-    load_balance:    document.getElementById('feat-lb')?.checked || false,
-    tun_enable:      document.getElementById('feat-tun').checked,
-    dashboard:       document.getElementById('feat-dashboard').checked,
+    ads_block:      document.getElementById('feat-ads').checked,
+    tracking_block: document.getElementById('feat-tracking').checked,
+    quic_block:     document.getElementById('feat-quic').checked,
+    // Infra toggles only exist in advanced mode; default false in simple mode
+    load_balance:   document.getElementById('feat-lb')?.checked      || false,
+    tun_enable:     document.getElementById('feat-tun')?.checked     || false,
+    dashboard:      document.getElementById('feat-dashboard')?.checked || false,
   }
 
   // Advanced mode reads all options from DOM; simple mode uses defaults
