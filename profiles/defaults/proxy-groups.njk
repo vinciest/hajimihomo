@@ -1,0 +1,35 @@
+# ── proxy group type anchors (edit url/interval here to apply everywhere) ─────
+_g_sel: &GroupSelect
+  type: select
+
+_g_ut: &GroupUrlTest
+  type: url-test
+  url: 'https://cp.cloudflare.com/generate_204'
+  interval: 180
+  tolerance: 50
+  lazy: true
+
+_g_fb: &GroupFallback
+  type: fallback
+  url: 'https://cp.cloudflare.com/generate_204'
+  interval: 200
+  lazy: true
+
+_g_lb_rr: &GroupLBRobin
+  type: load-balance
+  strategy: round-robin
+  url: 'https://cp.cloudflare.com/generate_204'
+  interval: 200
+  lazy: true
+
+_g_lb_ch: &GroupLBHash
+  type: load-balance
+  strategy: consistent-hashing
+  url: 'https://cp.cloudflare.com/generate_204'
+  interval: 200
+  lazy: true
+{% if smart %}
+_g_smart: &GroupSmart
+  type: smart
+  uselightgbm: true
+{% endif %}

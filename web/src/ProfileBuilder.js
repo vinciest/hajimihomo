@@ -22,6 +22,7 @@ import yaml from 'js-yaml'
 import nunjucks from 'nunjucks'
 import mihomoDefaultsText from '../../profiles/defaults/mihomo.yaml' with { type: 'text' }
 import ruleProvidersTmpl  from '../../profiles/defaults/rule-providers.njk' with { type: 'text' }
+import proxyGroupsTmpl    from '../../profiles/defaults/proxy-groups.njk'  with { type: 'text' }
 import presetsText from '../../profiles/presets.yaml' with { type: 'text' }
 import catalogIndexData from './data/catalog-index.json'
 import categoriesIndexData from './data/categories-index.json'
@@ -464,7 +465,61 @@ function _section(title, subtitle) {
   return `${_DIV}\n# ${title}\n#   ${subtitle}\n${_DIV}`
 }
 
-/** Maps a provider's {behavior, format} to the appropriate YAML anchor name. */
+/** Maps a proxy group to its YAML anchor name. */
+function _groupAnchorName(g) {
+  if (g.type === 'url-test')    return 'GroupUrlTest'
+  if (g.type === 'fallback')    return 'GroupFallback'
+  if (g.type === 'smart')       return 'GroupSmart'
+  if (g.type === 'load-balance')
+    return g.strategy === 'consistent-hashing' ? 'GroupLBHash' : 'GroupLBRobin'
+  return 'GroupSelect'
+}
+
+// Fields each anchor covers — omit from per-group output
+const _GROUP_ANCHOR_COVERS = {
+  GroupSelect:  new Set(['type']),
+  GroupUrlTest: new Set(['type', 'url', 'interval', 'tolerance', 'lazy']),
+  GroupFallback:new Set(['type', 'url', 'interval', 'lazy']),
+  GroupLBHash:  new Set(['type', 'strategy', 'url', 'interval', 'lazy']),
+  GroupLBRobin: new Set(['type', 'strategy', 'url', 'interval', 'lazy']),
+  GroupSmart:   new Set(['type', 'uselightgbm']),
+}
+
+function _yamlScalar(v) {
+  if (typeof v === 'boolean' || typeof v === 'number') return String(v)
+  const s = String(v)
+  // single-quote strings that contain YAML-special characters
+  if (/[:#\[\]{}&*!,|>'"%@`]/.test(s) || /^\s|\s$/.test(s)) {
+    return `'${s.replace(/'/g, "''")}'`
+  }
+  return s
+}
+
+/** Renders the proxy-groups section with YAML anchors for each group type. */
+function _renderProxyGroups(groups, target) {
+  const smart = target === 'mihomo-smart'
+  const anchorBlock = nunjucks.renderString(proxyGroupsTmpl, { smart }).trimEnd()
+
+  const lines = [anchorBlock, '', 'proxy-groups:']
+  for (const g of groups) {
+    const anchor = _groupAnchorName(g)
+    const skip   = _GROUP_ANCHOR_COVERS[anchor] || new Set()
+    lines.push(`  - name: ${_yamlScalar(g.name)}`)
+    lines.push(`    <<: *${anchor}`)
+    for (const [k, v] of Object.entries(g)) {
+      if (k === 'name' || skip.has(k)) continue
+      if (Array.isArray(v)) {
+        lines.push(`    ${k}:`)
+        for (const item of v) lines.push(`      - ${_yamlScalar(item)}`)
+      } else {
+        lines.push(`    ${k}: ${_yamlScalar(v)}`)
+      }
+    }
+  }
+  return lines.join('\n')
+}
+
+
 function _anchorFor(prov) {
   if (prov.format === 'mrs')
     return prov.behavior === 'domain' ? 'RuleProviderDomain_mrs' : 'RuleProviderIPCIDR_mrs'
@@ -563,7 +618,7 @@ export function buildFullProfile(subUrls, groupIds, catalog, opts = {}) {
         ? _dump({ 'proxy-providers': proxyProviders })
         : `# proxy-providers:\n#   airport-1:\n#     type: http\n#     url: 'https://your-airport.com/subscribe?token=xxx'\nproxy-providers: {}`),
     `# ── proxy groups ─────────────────────────────────────────────────────────────\n` +
-      _dump({ 'proxy-groups': groups }),
+      _renderProxyGroups(groups, target),
     _renderRuleProviders(ruleProviders),
     `# ── rules ────────────────────────────────────────────────────────────────────\n` +
       _dump({ rules }),
@@ -649,7 +704,7 @@ export function buildProfileFromCustomGroups(subUrls, customGroups, catalog, opt
         ? _dump({ 'proxy-providers': proxyProviders })
         : `# proxy-providers:\n#   airport-1:\n#     type: http\n#     url: 'https://your-airport.com/subscribe?token=xxx'\nproxy-providers: {}`),
     `# ── proxy groups ─────────────────────────────────────────────────────────────\n` +
-      _dump({ 'proxy-groups': allGroups }),
+      _renderProxyGroups(allGroups, target),
     _renderRuleProviders(ruleProviders),
     `# ── rules ────────────────────────────────────────────────────────────────────\n` +
       _dump({ rules }),
