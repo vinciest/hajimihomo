@@ -1,5 +1,5 @@
 import {
-  loadCatalog, presets, getGroups,
+  loadCatalog, presets,
   buildSingboxRuleSets, buildFullProfile, buildProfileFromCustomGroups,
 } from './ProfileBuilder.js'
 import { AdvancedBrowser } from './AdvancedBrowser.js'
@@ -8,6 +8,7 @@ import { CustomGroups } from './CustomGroups.js'
 const app = document.getElementById('app')
 
 app.innerHTML = `
+  <!-- ── Always-visible: kernel + subs + features ───────────────────────── -->
   <div class="section">
     <label>内核 / 输出格式</label>
     <select id="kernel">
@@ -17,48 +18,9 @@ app.innerHTML = `
     </select>
   </div>
 
-  <div class="section" id="topology-section">
-    <label>分组结构</label>
-    <select id="topology">
-      <option value="global">全局 — 单一代理池，无区域分组</option>
-      <option value="regional" selected>分区 — 各地区独立测速（推荐）</option>
-      <option value="advanced">高级 — 分区 + 负载均衡</option>
-    </select>
-  </div>
-
-  <div class="section" id="geodata-section">
-    <label>地理数据源</label>
-    <select id="geodata">
-      <option value="metacubex">MetaCubeX（轻量）— meta-rules-dat</option>
-      <option value="dustinwin">DustinWin（完整）— ruleset_geodata</option>
-    </select>
-  </div>
-
-  <div class="section" id="format-section">
-    <label>规则集格式</label>
-    <select id="format">
-      <option value="yaml-split" selected>YAML 分离 — 域名/IP 分离，性能最优（推荐）</option>
-      <option value="yaml-classical">YAML 经典 — 合并单文件，兼容性最佳</option>
-      <option value="binary">Binary .mrs — 需要 CI 发布后使用</option>
-    </select>
-  </div>
-
-  <div class="section" id="tier-section" style="display:none">
-    <label>规则集格式（sing-box）</label>
-    <select id="tier">
-      <option value="1">Tier 1 — 经典合并（兼容性最佳）</option>
-      <option value="2">Tier 2 — 分离格式（域名/IP 分离，性能最优）</option>
-    </select>
-  </div>
-
   <div class="section">
     <label>订阅链接（每行一个）</label>
     <textarea id="subs" placeholder="https://your-subscription-url/...&#10;https://backup-subscription-url/..."></textarea>
-  </div>
-
-  <div class="section" id="region-section">
-    <label>排除节点关键词（正则，留空不排除）</label>
-    <input id="region-excludes" type="text" placeholder="例: 5x|10x|0.5x" />
   </div>
 
   <div class="section">
@@ -67,7 +29,6 @@ app.innerHTML = `
       <label class="cat-item"><input type="checkbox" id="feat-ads" checked> 广告拦截</label>
       <label class="cat-item"><input type="checkbox" id="feat-tracking"> 追踪拦截</label>
       <label class="cat-item"><input type="checkbox" id="feat-quic"> 屏蔽 QUIC</label>
-      <label class="cat-item" id="feat-lb-wrap"><input type="checkbox" id="feat-lb"> 负载均衡（高级拓扑）</label>
       <label class="cat-item"><input type="checkbox" id="feat-tun"> TUN 模式</label>
       <label class="cat-item"><input type="checkbox" id="feat-dashboard"> 控制面板（:9090）</label>
     </div>
@@ -79,7 +40,7 @@ app.innerHTML = `
     <button id="mode-advanced">⚙️ 高级模式</button>
   </div>
 
-  <!-- ── Simple mode ─────────────────────────────────────────────────────── -->
+  <!-- ── Simple mode: preset only ────────────────────────────────────────── -->
   <div id="simple-mode">
     <div class="section">
       <label>预设</label>
@@ -87,14 +48,53 @@ app.innerHTML = `
         <option value="custom">自定义</option>
       </select>
     </div>
-    <div class="section" id="cat-section">
-      <label>规则集 <span id="cat-count" style="color:#8b949e"></span></label>
-      <div class="categories-grid" id="cat-grid"></div>
-    </div>
   </div>
 
-  <!-- ── Advanced mode ───────────────────────────────────────────────────── -->
+  <!-- ── Advanced mode: output options + builder ─────────────────────────── -->
   <div id="advanced-mode" style="display:none">
+    <div class="adv-opts-grid section">
+      <div>
+        <label>分组结构</label>
+        <select id="topology">
+          <option value="global">全局 — 单一代理池</option>
+          <option value="regional" selected>分区 — 各地区独立测速（推荐）</option>
+          <option value="advanced">高级 — 分区 + 负载均衡</option>
+        </select>
+      </div>
+      <div>
+        <label>地理数据源</label>
+        <select id="geodata">
+          <option value="metacubex">MetaCubeX（轻量）</option>
+          <option value="dustinwin">DustinWin（完整）</option>
+        </select>
+      </div>
+      <div id="format-wrap">
+        <label>规则集格式</label>
+        <select id="format">
+          <option value="yaml-split" selected>YAML 分离（推荐）</option>
+          <option value="yaml-classical">YAML 经典</option>
+          <option value="binary">Binary .mrs</option>
+        </select>
+      </div>
+      <div id="tier-wrap" style="display:none">
+        <label>规则集格式（sing-box）</label>
+        <select id="tier">
+          <option value="1">Tier 1 — 经典合并</option>
+          <option value="2" selected>Tier 2 — 分离格式</option>
+        </select>
+      </div>
+      <div>
+        <label>排除节点关键词（正则）</label>
+        <input id="region-excludes" type="text" placeholder="例: 5x|10x|0.5x" />
+      </div>
+      <div>
+        <label>负载均衡</label>
+        <div style="padding-top:0.55rem">
+          <label class="cat-item" id="feat-lb-wrap"><input type="checkbox" id="feat-lb"> 启用（需高级拓扑）</label>
+        </div>
+      </div>
+    </div>
+
     <div class="advanced-layout">
       <div class="adv-panel" id="adv-browser-panel"></div>
       <div class="adv-panel" id="adv-groups-panel"></div>
@@ -114,7 +114,7 @@ app.innerHTML = `
 `
 
 let catalog = null
-let selectedGroups = new Set()
+let simpleGroups = new Set()   // groups selected by preset (simple mode)
 let isAdvancedMode = false
 let advBrowser = null
 let advGroups  = null
@@ -122,7 +122,7 @@ let advGroups  = null
 async function init() {
   catalog = await loadCatalog().catch(() => ({ items: {} }))
 
-  // Populate preset selector (presets are bundled — no fetch needed)
+  // Populate preset selector
   const presetEl = document.getElementById('preset')
   for (const [name, data] of Object.entries(presets)) {
     const opt = document.createElement('option')
@@ -135,8 +135,6 @@ async function init() {
     applyPreset('standard')
   }
 
-  populateCatalogGrid(catalog)
-
   // Init advanced mode panels
   advBrowser = new AdvancedBrowser(
     document.getElementById('adv-browser-panel'),
@@ -144,71 +142,38 @@ async function init() {
   )
   advGroups = new CustomGroups(
     document.getElementById('adv-groups-panel'),
-    () => {}  // onChange — no-op for now
+    () => {}
   )
 }
 
 function applyPreset(name) {
   const data = presets[name]
   if (!data) return
-  selectedGroups = new Set(data.groups || [])
+  simpleGroups = new Set(data.groups || [])
 
-  // Sync topology and features from preset
-  if (data.topology) document.getElementById('topology').value = data.topology
+  // Sync topology and features from preset (advanced mode uses these)
+  const topology = document.getElementById('topology')
+  if (topology && data.topology) topology.value = data.topology
   if (data.features) {
     document.getElementById('feat-ads').checked      = !!data.features.ads_block
     document.getElementById('feat-tracking').checked = !!data.features.tracking_block
     document.getElementById('feat-quic').checked     = !!data.features.quic_block
     document.getElementById('feat-lb').checked       = !!data.features.load_balance
   }
-
-  // Sync checkboxes
-  document.querySelectorAll('#cat-grid input[type="checkbox"]').forEach(cb => {
-    cb.checked = selectedGroups.has(cb.value)
-  })
-  updateCatCount()
-}
-
-function populateCatalogGrid(catalog) {
-  const grid = document.getElementById('cat-grid')
-  grid.innerHTML = ''
-  for (const group of getGroups(catalog)) {
-    const action = group.defaultAction === 'REJECT' ? 'block'
-                 : group.defaultAction === 'DIRECT' ? 'direct' : 'proxy'
-    const item = document.createElement('label')
-    item.className = 'cat-item'
-    item.innerHTML = `
-      <input type="checkbox" value="${group.id}" ${selectedGroups.has(group.id) ? 'checked' : ''}>
-      <span>${group.id}<span class="tag ${action}">${action}</span></span>
-    `
-    item.querySelector('input').addEventListener('change', e => {
-      if (e.target.checked) selectedGroups.add(group.id)
-      else selectedGroups.delete(group.id)
-      updateCatCount()
-    })
-    grid.appendChild(item)
-  }
-  updateCatCount()
-}
-
-function updateCatCount() {
-  document.getElementById('cat-count').textContent = `(${selectedGroups.size} 已选)`
 }
 
 // ── event listeners ───────────────────────────────────────────────────────────
 
 document.getElementById('kernel').addEventListener('change', e => {
-  const isSingbox  = e.target.value === 'singbox'
-  document.getElementById('topology-section').style.display = isSingbox ? 'none' : ''
-  document.getElementById('geodata-section').style.display  = isSingbox ? 'none' : ''
-  document.getElementById('format-section').style.display   = isSingbox ? 'none' : ''
-  document.getElementById('tier-section').style.display     = isSingbox ? '' : 'none'
-  document.getElementById('region-section').style.display   = isSingbox ? 'none' : ''
-})
-
-document.getElementById('topology').addEventListener('change', e => {
-  const showLB = e.target.value === 'advanced'
-  document.getElementById('feat-lb-wrap').style.opacity = showLB ? '1' : '0.4'
+  const isSingbox = e.target.value === 'singbox'
+  const fmtWrap  = document.getElementById('format-wrap')
+  const tierWrap = document.getElementById('tier-wrap')
+  if (fmtWrap)  fmtWrap.style.display  = isSingbox ? 'none' : ''
+  if (tierWrap) tierWrap.style.display  = isSingbox ? ''     : 'none'
+  const topEl = document.getElementById('topology')
+  const geoEl = document.getElementById('geodata')
+  if (topEl) topEl.closest('div').style.display = isSingbox ? 'none' : ''
+  if (geoEl) geoEl.closest('div').style.display = isSingbox ? 'none' : ''
 })
 
 document.getElementById('preset').addEventListener('change', e => {
@@ -231,33 +196,34 @@ document.getElementById('mode-advanced').addEventListener('click', () => {
   document.getElementById('mode-simple').classList.remove('active')
   document.getElementById('advanced-mode').style.display = ''
   document.getElementById('simple-mode').style.display = 'none'
-  // Pre-populate advanced groups from current simple-mode selection
-  if (advGroups?.isEmpty() && selectedGroups.size > 0) {
-    advGroups.setFromPreset([...selectedGroups])
+  // Pre-populate advanced groups from current preset selection
+  if (advGroups?.isEmpty() && simpleGroups.size > 0) {
+    advGroups.setFromPreset([...simpleGroups])
   }
 })
 
 document.getElementById('generate').addEventListener('click', () => {
-  const kernel   = document.getElementById('kernel').value
-  const topology = document.getElementById('topology').value
-  const tier     = parseInt(document.getElementById('tier').value, 10)
-  const geodata  = document.getElementById('geodata').value
-  const format   = document.getElementById('format').value
-  const subs     = document.getElementById('subs').value.trim().split('\n').filter(Boolean)
-  const regionExcludes = document.getElementById('region-excludes').value.trim()
+  const kernel = document.getElementById('kernel').value
+  const subs   = document.getElementById('subs').value.trim().split('\n').filter(Boolean)
   const features = {
     ads_block:       document.getElementById('feat-ads').checked,
     tracking_block:  document.getElementById('feat-tracking').checked,
     quic_block:      document.getElementById('feat-quic').checked,
-    load_balance:    document.getElementById('feat-lb').checked,
+    load_balance:    document.getElementById('feat-lb')?.checked || false,
     tun_enable:      document.getElementById('feat-tun').checked,
     dashboard:       document.getElementById('feat-dashboard').checked,
   }
 
+  // Advanced mode reads all options from DOM; simple mode uses defaults
+  const topology       = document.getElementById('topology')?.value       || 'regional'
+  const geodata        = document.getElementById('geodata')?.value        || 'metacubex'
+  const format         = document.getElementById('format')?.value         || 'yaml-split'
+  const tier           = parseInt(document.getElementById('tier')?.value  || '2', 10)
+  const regionExcludes = document.getElementById('region-excludes')?.value.trim() || ''
+
   let output
   if (kernel === 'singbox') {
-    const preset   = document.getElementById('preset').value
-    const groupIds = preset === 'custom' ? [...selectedGroups] : [...(new Set(presets[preset]?.groups || []))]
+    const groupIds = [...simpleGroups]
     output = generateSingbox(groupIds, subs, tier)
   } else if (isAdvancedMode) {
     const customConfig = advGroups?.getConfig() || []
@@ -269,8 +235,7 @@ document.getElementById('generate').addEventListener('click', () => {
       topology, target: kernel, features, regionExcludes, geodata, format,
     })
   } else {
-    const preset   = document.getElementById('preset').value
-    const groupIds = preset === 'custom' ? [...selectedGroups] : [...(new Set(presets[preset]?.groups || []))]
+    const groupIds = [...simpleGroups]
     output = buildFullProfile(subs, groupIds, catalog || { items: {} }, {
       topology, target: kernel, features, regionExcludes, geodata, format,
     })
@@ -292,7 +257,7 @@ document.getElementById('download').addEventListener('click', () => {
   if (!text) return
   const kernel = document.getElementById('kernel').value
   const ext    = kernel === 'singbox' ? 'json' : 'yaml'
-  const name   = isAdvancedMode ? 'custom' : document.getElementById('preset').value
+  const name   = isAdvancedMode ? 'custom' : (document.getElementById('preset')?.value || 'profile')
   const a = document.createElement('a')
   a.href = URL.createObjectURL(new Blob([text], { type: 'text/plain' }))
   a.download = `${name}-${kernel}.${ext}`
