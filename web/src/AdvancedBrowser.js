@@ -9,7 +9,7 @@
  * Clicking a group or category calls onAdd(type, id, label).
  */
 
-import { catalogIndex, categoriesIndex } from './ProfileBuilder.js'
+import { catalogIndex, categoriesIndex } from './catalog.js'
 
 const ROW_HEIGHT = 40   // px, fixed height for virtual scroll rows
 const OVERSCAN   = 5    // extra rows above/below visible area

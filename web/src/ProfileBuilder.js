@@ -1,21 +1,8 @@
 /**
- * Profile builder core.
+ * Profile generation engine.
  *
- * Reads rulesets.json (emitted by build.py, served on the ruleset/mihomo branch)
- * and assembles a mihomo or sing-box config fragment from user-selected catalog groups.
- *
- * Catalog group IDs use slash notation (e.g. 'proxy/telegram').
- * Flat file-stem names are derived by replacing '/' with '-' (e.g. 'proxy-telegram').
- *
- * Tier 1 — classical all-in-one: one file per group, broadest compatibility.
- * Tier 2 — split files: separate domain/ip/residual/process files for performance.
- *           ip-resolve files are appended LAST across all groups (DNS safety).
- *           .ip providers require the no-resolve flag on the RULE-SET entry.
- *
- * Do NOT mix Tier-1 and Tier-2 files for the same category.
- *
- * sing-box output is a route/rule_set fragment only — subscription handling
- * is outside scope (use a kernel-level subscription import for outbounds).
+ * Pure functions — no DOM, no data fetching.
+ * Data layer lives in catalog.js; UI wiring in main.js.
  */
 
 import yaml from 'js-yaml'
@@ -23,9 +10,6 @@ import nunjucks from 'nunjucks'
 import mihomoDefaultsText from '../../profiles/defaults/mihomo.yaml' with { type: 'text' }
 import ruleProvidersTmpl  from '../../profiles/defaults/rule-providers.njk' with { type: 'text' }
 import proxyGroupsTmpl    from '../../profiles/defaults/proxy-groups.njk'  with { type: 'text' }
-import presetsText from '../../profiles/presets.yaml' with { type: 'text' }
-import catalogIndexData from './data/catalog-index.json'
-import categoriesIndexData from './data/categories-index.json'
 import {
   CDN_BASE, RELEASES_BASE, RULESETS_URL,
   SPLIT_ORDER, SPLIT_BEHAVIOR,
@@ -34,47 +18,6 @@ import {
   ICON_BASE, REGION_ICONS, SERVICE_ICONS,
   _CORE_KEYS, _GEODATA_KEYS,
 } from './constants.js'
-
-/** Presets bundled at build time from profiles/presets.yaml — no fetch needed. */
-export const presets = (() => {
-  const data = yaml.load(presetsText) || {}
-  return data.presets || {}
-})()
-
-/** @deprecated Use the presets export directly — kept for backwards compat. */
-export function loadPresets() { return presets }
-
-/** Catalog group metadata bundled at build time — keyed by group ID. */
-export const catalogIndex = catalogIndexData
-
-/** Category metadata bundled at build time — keyed by category name. */
-export const categoriesIndex = categoriesIndexData
-
-/** @returns {Promise<Object>} rulesets manifest from build.py */
-export async function loadCatalog() {
-  const resp = await fetch(RULESETS_URL)
-  if (!resp.ok) throw new Error(`Failed to load catalog: ${resp.status}`)
-  return resp.json()
-}
-
-/**
- * List available catalog groups from rulesets.json, sorted by group ID.
- * @param {Object} catalog — from loadCatalog()
- * @returns {{ id, flatName, name, defaultAction, region, tags }[]}
- */
-export function getGroups(catalog) {
-  return Object.entries(catalog.items || {})
-    .filter(([, info]) => info.kind === 'group')
-    .map(([flatName, info]) => ({
-      id:            info.group_id,
-      flatName,
-      name:          info.name || flatName,
-      defaultAction: info.default_action || 'PROXY',
-      region:        info.region || 'any',
-      tags:          info.tags || [],
-    }))
-    .sort((a, b) => a.id.localeCompare(b.id))
-}
 
 /**
  * Build mihomo rule-providers + ordered rules for selected catalog groups.

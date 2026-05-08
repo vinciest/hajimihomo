@@ -13,7 +13,7 @@
  */
 
 import Sortable from 'sortablejs'
-import { catalogIndex } from './ProfileBuilder.js'
+import { catalogIndex } from './catalog.js'
 
 let _nextId = 1
 

@@ -1,5 +1,5 @@
+import { loadCatalog, presets } from './catalog.js'
 import {
-  loadCatalog, presets,
   buildSingboxRuleSets, buildFullProfile, buildProfileFromCustomGroups,
 } from './ProfileBuilder.js'
 import { AdvancedBrowser } from './AdvancedBrowser.js'
