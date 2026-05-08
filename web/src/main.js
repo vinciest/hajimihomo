@@ -8,28 +8,53 @@ import { CustomGroups } from './CustomGroups.js'
 const app = document.getElementById('app')
 
 app.innerHTML = `
-  <!-- ── Always-visible: kernel + subs ─────────────────────────────────────── -->
-  <div class="section">
-    <label>内核 / 输出格式</label>
-    <select id="kernel">
-      <option value="mihomo">mihomo (Clash Meta) — 完整配置</option>
-      <option value="mihomo-smart">mihomo-smart (vernesong fork) — 完整配置 + smart 分组</option>
-      <option value="singbox">sing-box — 路由规则片段</option>
-    </select>
-  </div>
-
-  <div class="section">
-    <label>订阅链接（每行一个）</label>
-    <textarea id="subs" placeholder="https://your-subscription-url/...&#10;https://backup-subscription-url/..."></textarea>
-  </div>
-
   <!-- ── Mode toggle ──────────────────────────────────────────────────────── -->
   <div class="mode-toggle section">
     <button id="mode-simple" class="active">📋 简单模式</button>
     <button id="mode-advanced">⚙️ 高级模式</button>
   </div>
 
-  <!-- ── Simple mode: preset + blocking toggles ──────────────────────────── -->
+  <!-- ══════════════════ §1  核心配置 ══════════════════ -->
+  <div class="section-header">§1 &nbsp; 核心配置</div>
+
+  <div class="section">
+    <label>内核 / 输出格式</label>
+    <select id="kernel">
+      <option value="mihomo">mihomo (Clash Meta)</option>
+      <option value="mihomo-smart">mihomo-smart (vernesong fork) — smart 分组</option>
+      <option value="singbox">sing-box — 路由规则片段</option>
+    </select>
+  </div>
+
+  <!-- advanced-only §1 options -->
+  <div id="core-advanced" style="display:none">
+    <div class="adv-opts-grid section">
+      <div>
+        <label>地理数据源</label>
+        <select id="geodata">
+          <option value="metacubex">MetaCubeX（轻量）</option>
+          <option value="dustinwin">DustinWin（完整）</option>
+        </select>
+      </div>
+      <div>
+        <label>配置选项</label>
+        <div style="display:flex;gap:1rem;flex-wrap:wrap;padding-top:0.55rem">
+          <label class="cat-item"><input type="checkbox" id="feat-tun"> TUN 模式</label>
+          <label class="cat-item"><input type="checkbox" id="feat-dashboard"> 控制面板（:9090）</label>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════ §2  代理 & 规则 ══════════════════ -->
+  <div class="section-header">§2 &nbsp; 代理 &amp; 规则</div>
+
+  <div class="section">
+    <label>订阅链接（每行一个）</label>
+    <textarea id="subs" placeholder="https://your-subscription-url/...&#10;https://backup-subscription-url/..."></textarea>
+  </div>
+
+  <!-- ── Simple mode ────────────────────────────────────────────────────── -->
   <div id="simple-mode">
     <div class="section">
       <label>预设</label>
@@ -47,7 +72,7 @@ app.innerHTML = `
     </div>
   </div>
 
-  <!-- ── Advanced mode: output options + infra toggles + builder ─────────── -->
+  <!-- ── Advanced mode ──────────────────────────────────────────────────── -->
   <div id="advanced-mode" style="display:none">
     <div class="adv-opts-grid section">
       <div>
@@ -56,13 +81,6 @@ app.innerHTML = `
           <option value="global">全局 — 单一代理池</option>
           <option value="regional" selected>分区 — 各地区独立测速（推荐）</option>
           <option value="advanced">高级 — 分区 + 负载均衡</option>
-        </select>
-      </div>
-      <div>
-        <label>地理数据源</label>
-        <select id="geodata">
-          <option value="metacubex">MetaCubeX（轻量）</option>
-          <option value="dustinwin">DustinWin（完整）</option>
         </select>
       </div>
       <div id="format-wrap">
@@ -92,13 +110,6 @@ app.innerHTML = `
         <label class="cat-item"><input type="checkbox" id="feat-tracking-adv"> 追踪拦截</label>
         <label class="cat-item"><input type="checkbox" id="feat-quic-adv"> 屏蔽 QUIC</label>
         <label class="cat-item" id="feat-lb-wrap"><input type="checkbox" id="feat-lb"> 负载均衡</label>
-      </div>
-    </div>
-    <div class="section">
-      <label>配置选项</label>
-      <div style="display:flex;gap:1rem;flex-wrap:wrap;margin-top:0.4rem">
-        <label class="cat-item"><input type="checkbox" id="feat-tun"> TUN 模式</label>
-        <label class="cat-item"><input type="checkbox" id="feat-dashboard"> 控制面板（:9090）</label>
       </div>
     </div>
 
@@ -214,6 +225,7 @@ document.getElementById('mode-simple').addEventListener('click', () => {
   isAdvancedMode = false
   document.getElementById('mode-simple').classList.add('active')
   document.getElementById('mode-advanced').classList.remove('active')
+  document.getElementById('core-advanced').style.display = 'none'
   document.getElementById('simple-mode').style.display = ''
   document.getElementById('advanced-mode').style.display = 'none'
 })
@@ -222,6 +234,7 @@ document.getElementById('mode-advanced').addEventListener('click', () => {
   isAdvancedMode = true
   document.getElementById('mode-advanced').classList.add('active')
   document.getElementById('mode-simple').classList.remove('active')
+  document.getElementById('core-advanced').style.display = ''
   document.getElementById('advanced-mode').style.display = ''
   document.getElementById('simple-mode').style.display = 'none'
   // Pre-populate advanced groups from current preset selection
