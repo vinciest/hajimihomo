@@ -81,6 +81,13 @@ collect subscription URLs and optionally saves them to user.yaml.`)
 // ── preset loading ───────────────────────────────────────────────────────────
 
 function loadPreset(name: string): Record<string, any> {
+  // Try consolidated profiles/presets.yaml first
+  const consolidated = resolve(import.meta.dir, '../profiles/presets.yaml')
+  if (existsSync(consolidated)) {
+    const data = (yaml.load(readFileSync(consolidated, 'utf8')) || {}) as any
+    if (data.presets?.[name]) return data.presets[name]
+  }
+  // Fallback: individual preset files (legacy)
   const files = [
     join(PRESET_DIR, `${name}.yaml`),
     ...['1', '2', '3', '4'].map(n => join(PRESET_DIR, `${n}-${name}.yaml`)),
@@ -88,7 +95,7 @@ function loadPreset(name: string): Record<string, any> {
   for (const f of files) {
     if (existsSync(f)) return (yaml.load(readFileSync(f, 'utf8')) || {}) as Record<string, any>
   }
-  throw new Error(`Preset '${name}' not found in ${PRESET_DIR}/`)
+  throw new Error(`Preset '${name}' not found`)
 }
 
 // ── user config ───────────────────────────────────────────────────────────────

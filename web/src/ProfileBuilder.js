@@ -19,7 +19,12 @@
  */
 
 import yaml from 'js-yaml'
+import nunjucks from 'nunjucks'
 import mihomoDefaultsText from '../../profiles/defaults/mihomo.yaml' with { type: 'text' }
+import ruleProvidersTmpl  from '../../profiles/defaults/rule-providers.njk' with { type: 'text' }
+import presetsText from '../../profiles/presets.yaml' with { type: 'text' }
+import catalogIndexData from './data/catalog-index.json'
+import categoriesIndexData from './data/categories-index.json'
 import {
   CDN_BASE, RELEASES_BASE, RULESETS_URL,
   SPLIT_ORDER, SPLIT_BEHAVIOR,
@@ -29,17 +34,25 @@ import {
   _CORE_KEYS, _GEODATA_KEYS,
 } from './constants.js'
 
+/** Presets bundled at build time from profiles/presets.yaml — no fetch needed. */
+export const presets = (() => {
+  const data = yaml.load(presetsText) || {}
+  return data.presets || {}
+})()
+
+/** @deprecated Use the presets export directly — kept for backwards compat. */
+export function loadPresets() { return presets }
+
+/** Catalog group metadata bundled at build time — keyed by group ID. */
+export const catalogIndex = catalogIndexData
+
+/** Category metadata bundled at build time — keyed by category name. */
+export const categoriesIndex = categoriesIndexData
+
 /** @returns {Promise<Object>} rulesets manifest from build.py */
 export async function loadCatalog() {
   const resp = await fetch(RULESETS_URL)
   if (!resp.ok) throw new Error(`Failed to load catalog: ${resp.status}`)
-  return resp.json()
-}
-
-/** @returns {Promise<Object>} presets from gh-pages presets.json (built from profiles/presets/*.yaml) */
-export async function loadPresets() {
-  const resp = await fetch('presets.json')
-  if (!resp.ok) throw new Error(`Failed to load presets: ${resp.status}`)
   return resp.json()
 }
 
@@ -445,6 +458,27 @@ function _pick(obj, keys) {
   return Object.fromEntries(keys.filter(k => k in obj).map(k => [k, obj[k]]))
 }
 
+/** Maps a provider's {behavior, format} to the appropriate YAML anchor name. */
+function _anchorFor(prov) {
+  if (prov.format === 'mrs')
+    return prov.behavior === 'domain' ? 'RuleProviderDomain_mrs' : 'RuleProviderIPCIDR_mrs'
+  if (prov.behavior === 'domain')   return 'RuleProviderDomain'
+  if (prov.behavior === 'ipcidr')   return 'RuleProviderIPCIDR'
+  return 'RuleProviderClassical'
+}
+
+/** Renders the rule-providers section via Nunjucks, emitting YAML anchors. */
+function _renderRuleProviders(ruleProviders) {
+  const providers = Object.entries(ruleProviders).map(([key, prov]) => ({
+    key,
+    anchor: _anchorFor(prov),
+    url:    prov.url,
+    path:   prov.path,
+  }))
+  return nunjucks.renderString(ruleProvidersTmpl, { providers })
+}
+
+
 function _buildStaticBase(target, features, geodata) {
   const base = yaml.load(mihomoDefaultsText)
 
@@ -520,8 +554,89 @@ export function buildFullProfile(subUrls, groupIds, catalog, opts = {}) {
         : `# proxy-providers:\n#   airport-1:\n#     type: http\n#     url: 'https://your-airport.com/subscribe?token=xxx'\nproxy-providers: {}`),
     `# ── proxy groups ─────────────────────────────────────────────────────────────\n` +
       _dump({ 'proxy-groups': groups }),
-    `# ── rule providers ───────────────────────────────────────────────────────────\n` +
-      _dump({ 'rule-providers': ruleProviders }),
+    _renderRuleProviders(ruleProviders),
+    `# ── rules ────────────────────────────────────────────────────────────────────\n` +
+      _dump({ rules }),
+  ]
+
+  return sections.join('\n\n')
+}
+
+/**
+ * Build a complete mihomo profile from custom proxy groups (advanced mode).
+ *
+ * @param {string[]} subUrls — subscription URLs
+ * @param {Object[]} customGroups — [{name, action, members: [{type:'group'|'category', id}]}]
+ * @param {Object}   catalog — from loadCatalog()
+ * @param {Object}   opts — same as buildFullProfile opts
+ * @returns {string} complete YAML profile
+ */
+export function buildProfileFromCustomGroups(subUrls, customGroups, catalog, opts = {}) {
+  const {
+    topology = 'regional',
+    target   = 'mihomo',
+    features = {},
+    regionExcludes = '',
+    geodata  = 'metacubex',
+    format   = 'yaml-split',
+  } = opts
+
+  // Collect all unique group IDs referenced by the custom config
+  const allGroupIds = [...new Set(
+    customGroups.flatMap(cg => cg.members
+      .filter(m => m.type === 'group')
+      .map(m => m.id)
+    )
+  )]
+
+  // Build providers for all referenced groups (same as simple mode)
+  const ruleProviders = _buildRuleProvidersForFormat(allGroupIds, catalog, format)
+
+  // Build proxy groups: each custom group becomes a select proxy group
+  const { groups: regionGroups } = _buildProxyGroups(allGroupIds, { topology, target, features, regionExcludes })
+
+  // Override service groups with custom group names and actions
+  const serviceGroups = customGroups.map(cg => {
+    const action = cg.action || 'PROXY'
+    return { name: cg.name, type: 'select', proxies: [action === 'PROXY' ? '默认代理' : action, '直接连接'] }
+  })
+
+  // Effective map for rule routing: group ID → custom group name
+  const effectiveMap = {}
+  for (const cg of customGroups) {
+    for (const m of cg.members) {
+      if (m.type === 'group') effectiveMap[m.id] = [cg.name]
+    }
+  }
+
+  // Build rules using custom effectiveMap
+  const rules = _buildRules2(allGroupIds, catalog, effectiveMap, features, format)
+
+  const proxyProviders = _proxyProviders2(subUrls)
+  const header = `# generated by hajimihomo (advanced mode) · https://github.com/cest-la-v/hajimihomo`
+  const base = _buildStaticBase(target, features, geodata)
+
+  // Merge region groups + custom service groups (deduplicated region groups first)
+  const allGroups = [
+    ...regionGroups.filter(g => !serviceGroups.find(sg => sg.name === g.name)),
+    ...serviceGroups,
+  ]
+
+  const sections = [
+    `${header}\n# topology: ${topology}  target: ${target}  custom-groups: ${customGroups.length}`,
+    _dump(_pick(base, _CORE_KEYS)),
+    _dump(_pick(base, _GEODATA_KEYS)),
+    _dump({ profile: base.profile }),
+    _dump({ dns: base.dns }),
+    _dump({ sniffer: base.sniffer }),
+    _dump({ tun: base.tun }),
+    `# ── proxy providers ──────────────────────────────────────────────────────────\n` +
+      (subUrls.length
+        ? _dump({ 'proxy-providers': proxyProviders })
+        : `# proxy-providers:\n#   airport-1:\n#     type: http\n#     url: 'https://your-airport.com/subscribe?token=xxx'\nproxy-providers: {}`),
+    `# ── proxy groups ─────────────────────────────────────────────────────────────\n` +
+      _dump({ 'proxy-groups': allGroups }),
+    _renderRuleProviders(ruleProviders),
     `# ── rules ────────────────────────────────────────────────────────────────────\n` +
       _dump({ rules }),
   ]

@@ -1,0 +1,91 @@
+presets:
+
+  mini:
+    label: "Mini"
+    description: 'Mini: ads blocked + CN direct only. No per-service routing.'
+    target: mihomo
+    topology: global
+    features:
+      ads_block: true
+      tracking_block: false
+      quic_block: false
+      load_balance: false
+    groups:
+      - block/ads
+      - direct/cn
+
+  lite:
+    label: "Lite"
+    description: 'Lite: 8 essential services with single global url-test.'
+    target: mihomo
+    topology: global
+    features:
+      ads_block: true
+      tracking_block: false
+      quic_block: false
+      load_balance: false
+    groups:
+      - block/ads
+      - direct/cn
+      - proxy/apple
+      - proxy/google
+      - proxy/microsoft
+      - proxy/youtube
+      - proxy/telegram
+      - proxy/ai
+
+  standard:
+    label: "Standard"
+    description: 'Standard: 13 services including streaming + social, regional auto-test.'
+    target: mihomo
+    topology: regional
+    features:
+      ads_block: true
+      tracking_block: true
+      quic_block: true
+      load_balance: false
+    groups:
+      - block/ads
+      - block/tracking
+      - direct/cn
+      - proxy/apple
+      - proxy/google
+      - proxy/microsoft
+      - proxy/youtube
+      - proxy/telegram
+      - proxy/twitter
+      - proxy/netflix
+      - proxy/streaming
+      - proxy/social
+      - proxy/ai
+
+  full:
+    label: "Full"
+    description: 'Full: all 19 catalog groups, full LB topology.'
+    target: mihomo
+    topology: advanced
+    features:
+      ads_block: true
+      tracking_block: true
+      quic_block: true
+      load_balance: true
+    groups:
+      - block/ads
+      - block/tracking
+      - direct/cn
+      - direct/cn-ips
+      - proxy/apple
+      - proxy/google
+      - proxy/youtube
+      - proxy/microsoft
+      - proxy/amazon
+      - proxy/telegram
+      - proxy/twitter
+      - proxy/netflix
+      - proxy/streaming
+      - proxy/social
+      - proxy/ai
+      - proxy/gaming
+      - proxy/dev
+      - proxy/finance
+      - proxy/news

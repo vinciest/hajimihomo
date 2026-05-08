@@ -1,4 +1,9 @@
-import { loadCatalog, loadPresets, getGroups, buildSingboxRuleSets, buildFullProfile } from './ProfileBuilder.js'
+import {
+  loadCatalog, presets, getGroups,
+  buildSingboxRuleSets, buildFullProfile, buildProfileFromCustomGroups,
+} from './ProfileBuilder.js'
+import { AdvancedBrowser } from './AdvancedBrowser.js'
+import { CustomGroups } from './CustomGroups.js'
 
 const app = document.getElementById('app')
 
@@ -47,13 +52,6 @@ app.innerHTML = `
   </div>
 
   <div class="section">
-    <label>预设</label>
-    <select id="preset">
-      <option value="custom">自定义</option>
-    </select>
-  </div>
-
-  <div class="section">
     <label>订阅链接（每行一个）</label>
     <textarea id="subs" placeholder="https://your-subscription-url/...&#10;https://backup-subscription-url/..."></textarea>
   </div>
@@ -75,9 +73,35 @@ app.innerHTML = `
     </div>
   </div>
 
-  <div class="section" id="cat-section">
-    <label>规则集 <span id="cat-count" style="color:#8b949e"></span></label>
-    <div class="categories-grid" id="cat-grid"></div>
+  <!-- ── Mode toggle ──────────────────────────────────────────────────────── -->
+  <div class="mode-toggle section">
+    <button id="mode-simple" class="active">📋 简单模式</button>
+    <button id="mode-advanced">⚙️ 高级模式</button>
+  </div>
+
+  <!-- ── Simple mode ─────────────────────────────────────────────────────── -->
+  <div id="simple-mode">
+    <div class="section">
+      <label>预设</label>
+      <select id="preset">
+        <option value="custom">自定义</option>
+      </select>
+    </div>
+    <div class="section" id="cat-section">
+      <label>规则集 <span id="cat-count" style="color:#8b949e"></span></label>
+      <div class="categories-grid" id="cat-grid"></div>
+    </div>
+  </div>
+
+  <!-- ── Advanced mode ───────────────────────────────────────────────────── -->
+  <div id="advanced-mode" style="display:none">
+    <div class="advanced-layout">
+      <div class="adv-panel" id="adv-browser-panel"></div>
+      <div class="adv-panel" id="adv-groups-panel"></div>
+    </div>
+    <div style="margin-bottom:0.5rem;font-size:0.8rem;color:#8b949e">
+      点击左侧规则组旁的 <strong>+</strong> 按钮将其添加到右侧代理组；右侧可拖动 ⠿ 调整顺序。
+    </div>
   </div>
 
   <div style="margin-top:1.5rem">
@@ -89,16 +113,16 @@ app.innerHTML = `
   <div id="output" class="output-block" style="display:none"></div>
 `
 
-let presets = {}
 let catalog = null
 let selectedGroups = new Set()
+let isAdvancedMode = false
+let advBrowser = null
+let advGroups  = null
 
 async function init() {
-  const [catalogResult, presetsResult] = await Promise.allSettled([loadCatalog(), loadPresets()])
-  catalog  = catalogResult.status  === 'fulfilled' ? catalogResult.value  : { items: {} }
-  presets  = presetsResult.status  === 'fulfilled' ? presetsResult.value  : {}
+  catalog = await loadCatalog().catch(() => ({ items: {} }))
 
-  // Populate preset selector
+  // Populate preset selector (presets are bundled — no fetch needed)
   const presetEl = document.getElementById('preset')
   for (const [name, data] of Object.entries(presets)) {
     const opt = document.createElement('option')
@@ -106,14 +130,22 @@ async function init() {
     opt.textContent = `${name} — ${data.description || ''}`
     presetEl.appendChild(opt)
   }
-
-  // Default to 'full' if available
   if (presets.standard) {
     presetEl.value = 'standard'
     applyPreset('standard')
   }
 
   populateCatalogGrid(catalog)
+
+  // Init advanced mode panels
+  advBrowser = new AdvancedBrowser(
+    document.getElementById('adv-browser-panel'),
+    (type, id, label) => advGroups?.addItem(type, id, label)
+  )
+  advGroups = new CustomGroups(
+    document.getElementById('adv-groups-panel'),
+    () => {}  // onChange — no-op for now
+  )
 }
 
 function applyPreset(name) {
@@ -183,14 +215,34 @@ document.getElementById('preset').addEventListener('change', e => {
   if (e.target.value !== 'custom') applyPreset(e.target.value)
 })
 
+// ── Mode toggle ───────────────────────────────────────────────────────────────
+
+document.getElementById('mode-simple').addEventListener('click', () => {
+  isAdvancedMode = false
+  document.getElementById('mode-simple').classList.add('active')
+  document.getElementById('mode-advanced').classList.remove('active')
+  document.getElementById('simple-mode').style.display = ''
+  document.getElementById('advanced-mode').style.display = 'none'
+})
+
+document.getElementById('mode-advanced').addEventListener('click', () => {
+  isAdvancedMode = true
+  document.getElementById('mode-advanced').classList.add('active')
+  document.getElementById('mode-simple').classList.remove('active')
+  document.getElementById('advanced-mode').style.display = ''
+  document.getElementById('simple-mode').style.display = 'none'
+  // Pre-populate advanced groups from current simple-mode selection
+  if (advGroups?.isEmpty() && selectedGroups.size > 0) {
+    advGroups.setFromPreset([...selectedGroups])
+  }
+})
+
 document.getElementById('generate').addEventListener('click', () => {
   const kernel   = document.getElementById('kernel').value
   const topology = document.getElementById('topology').value
   const tier     = parseInt(document.getElementById('tier').value, 10)
   const geodata  = document.getElementById('geodata').value
   const format   = document.getElementById('format').value
-  const preset   = document.getElementById('preset').value
-  const groupIds = preset === 'custom' ? [...selectedGroups] : [...(new Set(presets[preset]?.groups || []))]
   const subs     = document.getElementById('subs').value.trim().split('\n').filter(Boolean)
   const regionExcludes = document.getElementById('region-excludes').value.trim()
   const features = {
@@ -204,11 +256,23 @@ document.getElementById('generate').addEventListener('click', () => {
 
   let output
   if (kernel === 'singbox') {
+    const preset   = document.getElementById('preset').value
+    const groupIds = preset === 'custom' ? [...selectedGroups] : [...(new Set(presets[preset]?.groups || []))]
     output = generateSingbox(groupIds, subs, tier)
+  } else if (isAdvancedMode) {
+    const customConfig = advGroups?.getConfig() || []
+    if (!customConfig.length || customConfig.every(g => !g.members.length)) {
+      alert('请先在高级模式中添加规则集到代理组')
+      return
+    }
+    output = buildProfileFromCustomGroups(subs, customConfig, catalog || { items: {} }, {
+      topology, target: kernel, features, regionExcludes, geodata, format,
+    })
   } else {
-    const target = kernel  // 'mihomo' or 'mihomo-smart'
+    const preset   = document.getElementById('preset').value
+    const groupIds = preset === 'custom' ? [...selectedGroups] : [...(new Set(presets[preset]?.groups || []))]
     output = buildFullProfile(subs, groupIds, catalog || { items: {} }, {
-      topology, target, features, regionExcludes, geodata, format,
+      topology, target: kernel, features, regionExcludes, geodata, format,
     })
   }
 
@@ -226,12 +290,12 @@ document.getElementById('copy').addEventListener('click', () => {
 document.getElementById('download').addEventListener('click', () => {
   const text = document.getElementById('output').textContent
   if (!text) return
-  const preset = document.getElementById('preset').value
   const kernel = document.getElementById('kernel').value
   const ext    = kernel === 'singbox' ? 'json' : 'yaml'
+  const name   = isAdvancedMode ? 'custom' : document.getElementById('preset').value
   const a = document.createElement('a')
   a.href = URL.createObjectURL(new Blob([text], { type: 'text/plain' }))
-  a.download = `${preset}-${kernel}.${ext}`
+  a.download = `${name}-${kernel}.${ext}`
   a.click()
 })
 
