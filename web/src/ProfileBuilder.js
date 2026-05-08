@@ -458,6 +458,12 @@ function _pick(obj, keys) {
   return Object.fromEntries(keys.filter(k => k in obj).map(k => [k, obj[k]]))
 }
 
+const _DIV = '# ' + '='.repeat(78)
+/** Major section header — two-line banner matching YYDS style. */
+function _section(title, subtitle) {
+  return `${_DIV}\n# ${title}\n#   ${subtitle}\n${_DIV}`
+}
+
 /** Maps a provider's {behavior, format} to the appropriate YAML anchor name. */
 function _anchorFor(prov) {
   if (prov.format === 'mrs')
@@ -542,12 +548,16 @@ export function buildFullProfile(subUrls, groupIds, catalog, opts = {}) {
 
   const sections = [
     `${header}\n# topology: ${topology}  target: ${target}  groups: ${groupIds.length}`,
+
+    _section('§1  CORE SETTINGS', 'kernel · geodata · profile · DNS · sniffer · TUN'),
     _dump(_pick(base, _CORE_KEYS)),
     _dump(_pick(base, _GEODATA_KEYS)),
     _dump({ profile: base.profile }),
     _dump({ dns: base.dns }),
     _dump({ sniffer: base.sniffer }),
     _dump({ tun: base.tun }),
+
+    _section('§2  PROXIES & RULES', 'proxy providers · proxy groups · rule providers · rules'),
     `# ── proxy providers ──────────────────────────────────────────────────────────\n` +
       (subUrls.length
         ? _dump({ 'proxy-providers': proxyProviders })
@@ -624,12 +634,16 @@ export function buildProfileFromCustomGroups(subUrls, customGroups, catalog, opt
 
   const sections = [
     `${header}\n# topology: ${topology}  target: ${target}  custom-groups: ${customGroups.length}`,
+
+    _section('§1  CORE SETTINGS', 'kernel · geodata · profile · DNS · sniffer · TUN'),
     _dump(_pick(base, _CORE_KEYS)),
     _dump(_pick(base, _GEODATA_KEYS)),
     _dump({ profile: base.profile }),
     _dump({ dns: base.dns }),
     _dump({ sniffer: base.sniffer }),
     _dump({ tun: base.tun }),
+
+    _section('§2  PROXIES & RULES', 'proxy providers · proxy groups · rule providers · rules'),
     `# ── proxy providers ──────────────────────────────────────────────────────────\n` +
       (subUrls.length
         ? _dump({ 'proxy-providers': proxyProviders })
