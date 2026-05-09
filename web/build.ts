@@ -1,7 +1,6 @@
 // @ts-nocheck — run with `bun run build.ts`
 import { rm, readFile, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
-import { load as parseYaml } from "js-yaml";
 
 await rm("dist", { recursive: true, force: true });
 
@@ -35,22 +34,9 @@ if (!result.success) {
   process.exit(1);
 }
 
-// ── Generate presets from single profiles/presets.yaml ────────────────────────
-const presetsYamlData = parseYaml(await readFile(resolve(import.meta.dir, "../profiles/presets.yaml"), "utf8")) as any;
-const presetsMap = presetsYamlData?.presets || {};
-const presets: Record<string, any> = {};
-for (const [name, data] of Object.entries(presetsMap)) {
-  const d = data as any;
-  presets[name] = {
-    label:       d.label       || name,
-    description: d.description || "",
-    target:      d.target      || "mihomo",
-    topology:    d.topology    || "regional",
-    features:    d.features    || {},
-    groups:      d.groups      || [],
-  };
-}
-await writeFile("dist/presets.json", JSON.stringify(presets, null, 2));
+// ── Write dist/presets.json from generated src/data/presets.json ─────────────
+const presetsJson = await readFile(resolve(import.meta.dir, "src/data/presets.json"), "utf8");
+await writeFile("dist/presets.json", presetsJson);
 
 for (const output of result.outputs) {
   const rel = output.path.replace(process.cwd() + "/", "");

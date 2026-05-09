@@ -5,18 +5,14 @@
  * on data loading, and any UI implementation can import data independently.
  */
 
-import yaml from 'js-yaml'
-import presetsText      from '../../profiles/presets.yaml'          with { type: 'text' }
+import presetsData        from './data/presets.json'
 import catalogIndexData  from './data/catalog-index.json'
 import categoriesIndexData from './data/categories-index.json'
 import { RULESETS_URL }  from './constants'
 import type { CatalogManifest, CatalogItem } from './types'
 
 /** Presets bundled at build time from profiles/presets.yaml — no fetch needed. */
-export const presets = (() => {
-  const data = (yaml.load(presetsText) || {}) as Record<string, any>
-  return data.presets || {}
-})()
+export const presets = (presetsData as Record<string, any>)
 
 /** @deprecated Use the presets export directly — kept for backwards compat. */
 export function loadPresets() { return presets }

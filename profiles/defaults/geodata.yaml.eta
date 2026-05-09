@@ -1,0 +1,8 @@
+geodata-mode: true
+geo-auto-update: true
+geo-update-interval: 168
+geox-url:
+  geoip: <%= it.geoip %>
+  geosite: <%= it.geosite %>
+  mmdb: <%= it.mmdb %>
+  asn: <%= it.asn %>

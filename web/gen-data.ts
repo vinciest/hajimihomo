@@ -14,6 +14,7 @@ const root = resolve(import.meta.dir, "..");
 
 const categoriesYaml = await readFile(resolve(root, "source/categories.yaml"), "utf8");
 const catalogYaml    = await readFile(resolve(root, "source/catalog.yaml"),    "utf8");
+const presetsYaml    = await readFile(resolve(root, "profiles/presets.yaml"),   "utf8");
 const _cats   = parseYaml(categoriesYaml) as Record<string, any>;
 const _catGrp = ((parseYaml(catalogYaml) as any)?.groups || {}) as Record<string, any>;
 
@@ -48,7 +49,22 @@ for (const [gid, gdata] of Object.entries(_catGrp)) {
   };
 }
 
+const presetsMap = ((parseYaml(presetsYaml) as any)?.presets || {}) as Record<string, any>;
+const presetsIndex: Record<string, any> = {};
+for (const [name, data] of Object.entries(presetsMap)) {
+  const d = data as any;
+  presetsIndex[name] = {
+    label:       d.label       || name,
+    description: d.description || "",
+    target:      d.target      || "mihomo",
+    topology:    d.topology    || "regional",
+    features:    d.features    || {},
+    groups:      d.groups      || [],
+  };
+}
+
 const dataDir = resolve(import.meta.dir, "src/data");
 await mkdir(dataDir, { recursive: true });
 await writeFile(resolve(dataDir, "categories-index.json"), JSON.stringify(categoriesIndex));
 await writeFile(resolve(dataDir, "catalog-index.json"),    JSON.stringify(catalogIndex));
+await writeFile(resolve(dataDir, "presets.json"),          JSON.stringify(presetsIndex));

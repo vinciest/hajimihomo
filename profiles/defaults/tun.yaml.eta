@@ -1,0 +1,8 @@
+tun:
+  enable: <%= it.tun_enable %>
+  stack: mixed
+  auto-route: true
+  auto-redirect: true
+  auto-detect-interface: true
+  dns-hijack:
+    - any:53
