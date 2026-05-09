@@ -12,7 +12,10 @@ import type { CatalogManifest, ProfileOptions, CustomGroup } from './types'
  */
 
 import yaml from 'js-yaml'
-import mihomoDefaultsText from '../../profiles/defaults/mihomo.yaml' with { type: 'text' }
+import mihomoDefaultsText       from '../../profiles/defaults/mihomo.yaml'                    with { type: 'text' }
+import ruleProviderAnchors      from '../../profiles/defaults/rule-provider-anchors.yaml'     with { type: 'text' }
+import proxyGroupAnchors        from '../../profiles/defaults/proxy-group-anchors.yaml'       with { type: 'text' }
+import proxyGroupAnchorsSmart   from '../../profiles/defaults/proxy-group-anchors-smart.yaml' with { type: 'text' }
 import {
   CDN_BASE, RELEASES_BASE, RULESETS_URL,
   SPLIT_ORDER, SPLIT_BEHAVIOR,
@@ -444,44 +447,9 @@ function _yamlScalar(v) {
 /** Renders the proxy-groups section with YAML anchors for each group type. */
 function _renderProxyGroups(groups, target) {
   const smart = target === 'mihomo-smart'
-  const anchorBlock = [
-    '# ── proxy group type anchors (edit url/interval here to apply everywhere) ─────',
-    '_g_sel: &GroupSelect',
-    '  type: select',
-    '',
-    '_g_ut: &GroupUrlTest',
-    '  type: url-test',
-    "  url: 'https://cp.cloudflare.com/generate_204'",
-    '  interval: 180',
-    '  tolerance: 50',
-    '  lazy: true',
-    '',
-    '_g_fb: &GroupFallback',
-    '  type: fallback',
-    "  url: 'https://cp.cloudflare.com/generate_204'",
-    '  interval: 200',
-    '  lazy: true',
-    '',
-    '_g_lb_rr: &GroupLBRobin',
-    '  type: load-balance',
-    '  strategy: round-robin',
-    "  url: 'https://cp.cloudflare.com/generate_204'",
-    '  interval: 200',
-    '  lazy: true',
-    '',
-    '_g_lb_ch: &GroupLBHash',
-    '  type: load-balance',
-    '  strategy: consistent-hashing',
-    "  url: 'https://cp.cloudflare.com/generate_204'",
-    '  interval: 200',
-    '  lazy: true',
-    ...(smart ? [
-      '',
-      '_g_smart: &GroupSmart',
-      '  type: smart',
-      '  uselightgbm: true',
-    ] : []),
-  ].join('\n')
+  const anchorBlock = smart
+    ? proxyGroupAnchors.trimEnd() + '\n\n' + proxyGroupAnchorsSmart.trimEnd()
+    : proxyGroupAnchors.trimEnd()
 
   const lines = [anchorBlock, '', 'proxy-groups:']
   for (const g of groups) {
@@ -514,34 +482,7 @@ function _anchorFor(prov) {
 /** Renders the rule-providers section, emitting YAML anchors. */
 function _renderRuleProviders(ruleProviders) {
   const lines = [
-    '# ── rule provider anchors ─────────────────────────────────────────────────────',
-    '# Modify these anchors to update all rule-providers of each type at once.',
-    '# e.g. change interval: 86400 → interval: 43200 here to halve the refresh interval.',
-    '_p_domain: &RuleProviderDomain',
-    '  type: http',
-    '  behavior: domain',
-    '  interval: 86400',
-    '  format: yaml',
-    '_p_ipcidr: &RuleProviderIPCIDR',
-    '  type: http',
-    '  behavior: ipcidr',
-    '  interval: 86400',
-    '  format: yaml',
-    '_p_classical: &RuleProviderClassical',
-    '  type: http',
-    '  behavior: classical',
-    '  interval: 86400',
-    '  format: yaml',
-    '_p_domain_mrs: &RuleProviderDomain_mrs',
-    '  type: http',
-    '  behavior: domain',
-    '  interval: 86400',
-    '  format: mrs',
-    '_p_ipcidr_mrs: &RuleProviderIPCIDR_mrs',
-    '  type: http',
-    '  behavior: ipcidr',
-    '  interval: 86400',
-    '  format: mrs',
+    ruleProviderAnchors.trimEnd(),
     '',
     '# ── rule providers ─────────────────────────────────────────────────────────────',
     'rule-providers:',

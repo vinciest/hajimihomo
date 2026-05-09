@@ -1,0 +1,3 @@
+_g_smart: &GroupSmart
+  type: smart
+  uselightgbm: true
