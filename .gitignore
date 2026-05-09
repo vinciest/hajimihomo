@@ -8,3 +8,4 @@ source/hosts/.cache.json
 bin/
 *.bun-build
 web/src/data/
+web/src/styles.css
