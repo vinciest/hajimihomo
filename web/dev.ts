@@ -4,9 +4,7 @@
 import index from "./index.html";
 import { readFile, mkdir, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
-import { load as parseYaml } from "js-yaml";
-
-// ── Load presets from single profiles/presets.yaml ────────────────────────────
+import { load as parseYaml } from "js-yaml"; ────────────────────────────
 const presetsYamlData = parseYaml(await readFile(resolve(import.meta.dir, "../profiles/presets.yaml"), "utf8")) as any;
 const presetsMap = presetsYamlData?.presets || {};
 const presets: Record<string, any> = {};
@@ -75,9 +73,18 @@ async function serveRulesetFile(pathname) {
   return fetch(`${CDN_RULESET}/${pathname}`);
 }
 
+// ── Tailwind CSS watcher ──────────────────────────────────────────────────────
+Bun.spawn(['./node_modules/.bin/tailwindcss', '-i', 'src/input.css', '-o', 'src/styles.css', '--watch'], {
+  stdout: 'inherit', stderr: 'inherit', cwd: import.meta.dir,
+})
+
 Bun.serve({
   routes: {
     "/": index,
+    "/styles.css": () => {
+      const cssPath = resolve(import.meta.dir, 'src/styles.css')
+      return Bun.file(cssPath)
+    },
     "/presets.json": () => new Response(presetsJson, {
       headers: { "Content-Type": "application/json" },
     }),

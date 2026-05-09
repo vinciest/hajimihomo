@@ -19,7 +19,7 @@ import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'node:fs'
 import { resolve, join, dirname } from 'node:path'
 import { createInterface } from 'node:readline/promises'
 import yaml from 'js-yaml'
-import { buildFullProfile } from './src/ProfileBuilder.js'
+import { buildFullProfile } from './src/ProfileBuilder'
 import { buildHostsBlock } from './hosts.js'
 
 const PRESET_DIR = 'profiles/presets'

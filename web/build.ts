@@ -5,6 +5,12 @@ import { load as parseYaml } from "js-yaml";
 
 await rm("dist", { recursive: true, force: true });
 
+// ── Build Tailwind CSS ────────────────────────────────────────────────────────
+const tw = Bun.spawn(['./node_modules/.bin/tailwindcss', '-i', 'src/input.css', '-o', 'src/styles.css'], {
+  stdout: 'inherit', stderr: 'inherit', cwd: import.meta.dir,
+})
+await tw.exited
+
 // ── Generate categories + catalog indexes (bundled into catalog.js) ────────────
 await import("./gen-data.ts");
 
