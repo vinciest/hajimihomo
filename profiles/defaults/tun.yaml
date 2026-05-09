@@ -1,5 +1,5 @@
 tun:
-  enable: <%= it.tun_enable %>
+  enable: false
   stack: mixed
   auto-route: true
   auto-redirect: true

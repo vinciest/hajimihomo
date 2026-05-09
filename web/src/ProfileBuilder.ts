@@ -17,7 +17,7 @@ import geodataTmpl       from '../../profiles/defaults/geodata.yaml.eta'        
 import profileTmpl       from '../../profiles/defaults/profile.yaml.eta'          with { type: 'text' }
 import dnsText           from '../../profiles/defaults/dns.yaml'                  with { type: 'text' }
 import snifferText       from '../../profiles/defaults/sniffer.yaml'              with { type: 'text' }
-import tunTmpl           from '../../profiles/defaults/tun.yaml.eta'              with { type: 'text' }
+import tunText           from '../../profiles/defaults/tun.yaml'                  with { type: 'text' }
 import ruleProviderAnchors      from '../../profiles/defaults/rule-provider-anchors.yaml'     with { type: 'text' }
 import proxyProviderAnchors     from '../../profiles/defaults/proxy-provider-anchors.yaml'    with { type: 'text' }
 import proxyGroupAnchors        from '../../profiles/defaults/proxy-group-anchors.yaml'       with { type: 'text' }
@@ -519,7 +519,7 @@ function _buildSections(target, features, geodata, rules) {
     profile: _tmpl(profileTmpl,  { smart }),
     dns:     dnsText.trimEnd(),
     sniffer: snifferText.trimEnd(),
-    tun:     _tmpl(tunTmpl,      { tun_enable: !!features.tun_enable }),
+    tun:     features.tun_enable ? tunText.trimEnd() : '',
     rules:   'rules:\n' + rules.map(r => `  - ${r}`).join('\n'),
   }
 }
