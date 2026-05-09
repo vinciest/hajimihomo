@@ -1,68 +1,49 @@
 // @ts-nocheck — run with `bun run dev.ts`
 // Set RULESET_DIR env var to serve rulesets from a local build output:
 //   RULESET_DIR=../dist bun run dev.ts
-import index from "./index.html";
+import { plugin } from 'bun'
 import { readFile, mkdir, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
-import { load as parseYaml } from "js-yaml"; ────────────────────────────
-const presetsYamlData = parseYaml(await readFile(resolve(import.meta.dir, "../profiles/presets.yaml"), "utf8")) as any;
-const presetsMap = presetsYamlData?.presets || {};
-const presets: Record<string, any> = {};
-for (const [name, data] of Object.entries(presetsMap)) {
-  const d = data as any;
-  presets[name] = {
-    label:       d.label       || name,
-    description: d.description || "",
-    target:      d.target      || "mihomo",
-    topology:    d.topology    || "regional",
-    features:    d.features    || {},
-    groups:      d.groups      || [],
-  };
-}
-const presetsJson = JSON.stringify(presets, null, 2);
+import { buildCatalogIndex, buildPresetsIndex, buildCategoriesIndex } from "./data-transforms";
 
-// ── Generate category/catalog indexes for advanced mode ───────────────────────
-const categoriesYaml = await readFile(resolve(import.meta.dir, "../source/categories.yaml"), "utf8");
-const catalogYaml    = await readFile(resolve(import.meta.dir, "../source/catalog.yaml"),    "utf8");
-const _cats   = parseYaml(categoriesYaml) as Record<string, any>;
-const _catGrp = ((parseYaml(catalogYaml) as any)?.groups || {}) as Record<string, any>;
-const _catToGroups: Record<string, string[]> = {};
-for (const [gid, gdata] of Object.entries(_catGrp)) {
-  for (const member of (gdata as any).members || []) {
-    (_catToGroups[member] = _catToGroups[member] || []).push(gid);
+// Register plugin BEFORE loading index.html so Bun processes catalog.ts YAML imports correctly
+plugin({
+  name: 'source-yaml',
+  setup(build) {
+    build.onLoad({ filter: /source\/catalog\.yaml$/ }, async ({ path }) => {
+      const text = await Bun.file(path).text()
+      return { contents: JSON.stringify(buildCatalogIndex(text)), loader: 'json' }
+    })
+    build.onLoad({ filter: /profiles\/presets\.yaml$/ }, async ({ path }) => {
+      const text = await Bun.file(path).text()
+      return { contents: JSON.stringify(buildPresetsIndex(text)), loader: 'json' }
+    })
   }
-}
-const categoriesIndex: Record<string, any> = {};
-for (const [name, data] of Object.entries(_cats)) {
-  if (typeof data !== "object" || data === null) continue;
-  categoriesIndex[name] = { type: (data as any).type || "unknown", groups: _catToGroups[name] || [] };
-}
-const catalogIndex: Record<string, any> = {};
-for (const [gid, gdata] of Object.entries(_catGrp)) {
-  const d = gdata as any;
-  catalogIndex[gid] = {
-    name: d.name || gid, description: d.description || "",
-    defaultAction: d.default_action || "PROXY", tags: d.tags || [],
-    region: d.region || "any", memberCount: (d.members || []).length, members: d.members || [],
-  };
-}
-const dataDir = resolve(import.meta.dir, "src/data");
-await mkdir(dataDir, { recursive: true });
-await writeFile(resolve(dataDir, "categories-index.json"), JSON.stringify(categoriesIndex));
-await writeFile(resolve(dataDir, "catalog-index.json"), JSON.stringify(catalogIndex));
+})
 
-const distDir = process.env.RULESET_DIR
+// Generate dist/categories-index.json for browser fetch
+const root = resolve(import.meta.dir, '..')
+const categoriesYaml = await readFile(resolve(root, 'source/categories.yaml'), 'utf8')
+const catalogYaml    = await readFile(resolve(root, 'source/catalog.yaml'),    'utf8')
+const categoriesIndexData = buildCategoriesIndex(categoriesYaml, catalogYaml)
+const distDir = resolve(import.meta.dir, 'dist')
+await mkdir(distDir, { recursive: true })
+await writeFile(resolve(distDir, 'categories-index.json'), JSON.stringify(categoriesIndexData))
+
+// Load index.html AFTER plugin registration
+const { default: index } = await import('./index.html')
+
+const rulesetDistDir = process.env.RULESET_DIR
   ? resolve(import.meta.dir, process.env.RULESET_DIR)
   : null;
-const rulesetDir = distDir ? resolve(distDir, "mihomo") : null;
-const localRulesetsJson = distDir
-  ? await readFile(resolve(distDir, "rulesets.json"), "utf8").catch(() => null)
+const rulesetDir = rulesetDistDir ? resolve(rulesetDistDir, "mihomo") : null;
+const localRulesetsJson = rulesetDistDir
+  ? await readFile(resolve(rulesetDistDir, "rulesets.json"), "utf8").catch(() => null)
   : null;
 
 const CDN_RULESET = "https://cdn.jsdelivr.net/gh/cest-la-v/hajimihomo@ruleset/mihomo";
 
 async function serveRulesetFile(pathname) {
-  // Local file takes priority; fall back to CDN proxy
   if (rulesetDir) {
     const content = await readFile(resolve(rulesetDir, pathname), "utf8").catch(() => null);
     if (content) {
@@ -85,9 +66,7 @@ Bun.serve({
       const cssPath = resolve(import.meta.dir, 'src/styles.css')
       return Bun.file(cssPath)
     },
-    "/presets.json": () => new Response(presetsJson, {
-      headers: { "Content-Type": "application/json" },
-    }),
+    "/categories-index.json": () => Bun.file(resolve(distDir, 'categories-index.json')),
     // Always intercept /ruleset/mihomo/* — local file or CDN proxy
     "/ruleset/mihomo/rulesets.json": () =>
       localRulesetsJson

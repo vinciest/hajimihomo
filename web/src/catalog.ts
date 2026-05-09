@@ -5,9 +5,8 @@
  * on data loading, and any UI implementation can import data independently.
  */
 
-import presetsData        from './data/presets.json'
-import catalogIndexData  from './data/catalog-index.json'
-import categoriesIndexData from './data/categories-index.json'
+import presetsData      from '../../profiles/presets.yaml'
+import catalogIndexData from '../../source/catalog.yaml'
 import { RULESETS_URL }  from './constants'
 import type { CatalogManifest, CatalogItem } from './types'
 
@@ -20,8 +19,12 @@ export function loadPresets() { return presets }
 /** Catalog group metadata bundled at build time — keyed by group ID. */
 export const catalogIndex = catalogIndexData
 
-/** Category metadata bundled at build time — keyed by category name. */
-export const categoriesIndex = categoriesIndexData
+/** Load categories index lazily — fetched from dist/ when Advanced Mode is opened. */
+export async function loadCategoriesIndex(): Promise<Record<string, any>> {
+  const resp = await fetch('./categories-index.json')
+  if (!resp.ok) throw new Error(`Failed to load categories index: ${resp.status}`)
+  return resp.json()
+}
 
 /** @returns rulesets manifest from build.py */
 export async function loadCatalog(): Promise<CatalogManifest> {
