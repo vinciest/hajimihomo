@@ -41,3 +41,27 @@
 9. 对任何因使用本项目而造成的损失或损害概不负责，包括但不限于由规则或脚本错误导致的任何损失。
 
 10. 您必须在下载后的 24 小时内从您的设备中完全删除从本项目获取的所有内容。
+
+---
+
+## Generator CLI
+
+Download `generator.js` from [GitHub Releases](https://github.com/cest-la-v/hajimihomo/releases/latest) and run with [Bun](https://bun.sh):
+
+```bash
+# Generate a profile
+bun run generator.js --preset standard --sub https://airport.com/sub?token=xxx
+
+# All options
+bun run generator.js --help
+
+# Run directly from a release URL (no download needed)
+bun run https://github.com/cest-la-v/hajimihomo/releases/latest/download/generator.js \
+  --preset full --sub https://airport.com/sub?token=xxx
+
+# --catalog is required when running outside the repo root
+bun run generator.js --preset mini --sub ... --catalog /path/to/rulesets.json
+```
+
+All deps (templates, presets, js-yaml, nunjucks) are bundled into the single file.
+`rulesets.json` is a build artifact — build locally (`make build-groups`) or pass `--catalog` pointing at a copy.

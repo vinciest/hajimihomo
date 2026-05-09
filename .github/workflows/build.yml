@@ -9,6 +9,10 @@ on:
     paths:
       - 'source/**'
       - 'scripts/**'
+      - 'web/cli.ts'
+      - 'web/src/**'
+      - 'profiles/defaults/**'
+      - 'profiles/presets.yaml'
 
 concurrency:
   group: build
@@ -32,6 +36,11 @@ jobs:
         with:
           python-version: '3.12'
           cache: pip
+
+      - name: Set up Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
 
       - name: Install dependencies
         run: pip install pyyaml
@@ -84,6 +93,13 @@ jobs:
           else
             echo "No binaries directory — skipping binary validation"
           fi
+
+      - name: Build generator.js
+        run: |
+          cd web && bun install --frozen-lockfile
+          cd ..
+          bun build web/cli.ts --outfile dist/binaries/generator.js --target bun
+          echo "Generator bundle: $(du -sh dist/binaries/generator.js | cut -f1)"
 
       - name: Publish binaries to GitHub Releases
         if: ${{ hashFiles('dist/binaries/*') != '' }}
