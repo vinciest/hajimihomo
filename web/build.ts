@@ -28,12 +28,32 @@ const sourceYamlPlugin = {
   }
 }
 
+// ── Build generator.js (browser ESM — shared engine) ────────────────────────
+const generatorResult = await Bun.build({
+  entrypoints: ['./src/generator-exports.ts'],
+  outdir: './dist',
+  naming: { entry: 'generator.[ext]' },
+  target: 'browser',
+  format: 'esm',
+  minify: true,
+})
+if (!generatorResult.success) {
+  for (const msg of generatorResult.logs) console.error(msg)
+  process.exit(1)
+}
+for (const output of generatorResult.outputs) {
+  const rel = output.path.replace(process.cwd() + '/', '')
+  console.log(`  ${rel}  ${(output.size / 1024).toFixed(1)} KB`)
+}
+
+// ── Build web app (externalizes hajimihomo-generator) ─────────────────────────
 const result = await Bun.build({
   entrypoints: ["./index.html"],
   outdir: "dist",
   target: "browser",
   minify: true,
   plugins: [sourceYamlPlugin],
+  external: ['hajimihomo-generator'],
   define: {
     'process.env.NODE_ENV': '"production"',
   },

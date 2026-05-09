@@ -1,4 +1,4 @@
-.PHONY: help build build-groups build-dry validate extract extract-check dev web-build web-dev web-install vendor-sync vendor-coverage profile generator cli-build clean
+.PHONY: help build build-groups build-dry validate extract extract-check dev web-build web-dev web-install vendor-sync vendor-coverage profile generator generator-cli cli-build clean
 
 GROUPS ?= proxy/telegram,block/ads,direct/cn
 JOBS   ?= 8
@@ -26,7 +26,8 @@ help:
 	@echo ""
 	@echo "Profile builder (CLI):"
 	@echo "  make cli-build       compile Bun CLI binary → bin/hajimihomo"
-	@echo "  make generator       bundle generator to dist/generator.js (portable, runs with bun)"
+	@echo "  make generator       build dist/generator.js (browser ESM) + web app"
+	@echo "  make generator-cli   bundle dist/generator-cli.js (Bun CLI, all deps inlined)"
 	@echo "  make profile                    build profile (default: standard preset)"
 	@echo "  make profile PRESET=full        build with a specific preset"
 
@@ -69,9 +70,12 @@ web-build: web-install
 cli-build: web-install   ## Compile Bun CLI binary → bin/hajimihomo
 	bun build --compile web/cli.ts --outfile bin/hajimihomo
 
-generator: web-install   ## Bundle generator to dist/generator.js (all deps inlined, portable)
+generator: web-install   ## Bundle generator.js (browser ESM) via web/build.ts
+	cd web && bun run build.ts
+
+generator-cli: web-install   ## Bundle generator-cli.js (Bun CLI, all deps inlined)
 	bun run web/gen-data.ts
-	bun build web/cli.ts --outfile dist/generator.js --target bun
+	bun build web/cli.ts --outfile dist/generator-cli.js --target bun
 
 profile: web-install    ## Generate profile (PRESET=mini|lite|standard|full)
 	bun run web/cli.ts --preset $(PRESET)

@@ -5,7 +5,7 @@ import { CoreSection } from './components/CoreSection'
 import { ProxiesSection } from './components/ProxiesSection'
 import { OutputPanel } from './components/OutputPanel'
 import { ModeToggle } from './components/ModeToggle'
-import { buildFullProfile, buildProfileFromCustomGroups } from './ProfileBuilder'
+
 
 export interface AppState {
   mode: 'simple' | 'advanced'
@@ -129,12 +129,18 @@ export default function App() {
     }
   }, [])
 
-  function handleGenerate() {
+  // Preload generator in background after initial render
+  useEffect(() => {
+    import('hajimihomo-generator').catch(() => {})
+  }, [])
+
+  async function handleGenerate() {
     if (!catalog) return
     dispatch({ type: 'SET_GENERATING', generating: true })
     dispatch({ type: 'SET_ERROR', error: null })
 
     try {
+      const { buildFullProfile, buildProfileFromCustomGroups } = await import('hajimihomo-generator')
       const subUrls = state.subs.map(s => s.url)
       const features = {
         ads_block: state.blockAds,

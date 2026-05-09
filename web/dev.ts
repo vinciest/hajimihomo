@@ -21,6 +21,15 @@ plugin({
   }
 })
 
+plugin({
+  name: 'hajimihomo-generator',
+  setup(build) {
+    build.onResolve({ filter: /^hajimihomo-generator$/ }, () => ({
+      path: resolve(import.meta.dir, 'src/ProfileBuilder.ts'),
+    }))
+  }
+})
+
 // Generate dist/categories-index.json for browser fetch
 const root = resolve(import.meta.dir, '..')
 const categoriesYaml = await readFile(resolve(root, 'source/categories.yaml'), 'utf8')
