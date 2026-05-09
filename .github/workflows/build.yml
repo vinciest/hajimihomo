@@ -96,8 +96,8 @@ jobs:
 
       - name: Build generator.js
         run: |
-          cd web && bun install --frozen-lockfile
-          cd ..
+          cd web && bun install --frozen-lockfile && cd ..
+          bun run web/gen-data.ts
           bun build web/cli.ts --outfile dist/binaries/generator.js --target bun
           echo "Generator bundle: $(du -sh dist/binaries/generator.js | cut -f1)"
 

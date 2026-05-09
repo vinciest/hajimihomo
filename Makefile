@@ -70,6 +70,7 @@ cli-build: web-install   ## Compile Bun CLI binary → bin/hajimihomo
 	bun build --compile web/cli.ts --outfile bin/hajimihomo
 
 generator: web-install   ## Bundle generator to dist/generator.js (all deps inlined, portable)
+	bun run web/gen-data.ts
 	bun build web/cli.ts --outfile dist/generator.js --target bun
 
 profile: web-install    ## Generate profile (PRESET=mini|lite|standard|full)
