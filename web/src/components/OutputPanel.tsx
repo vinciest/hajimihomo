@@ -26,24 +26,21 @@ export function OutputPanel({ output, error, generating, onGenerate, target, mod
     a.click()
   }
 
-  const btnBase = "px-3 py-1.5 text-sm rounded border cursor-pointer transition-colors disabled:opacity-50"
-
   return (
     <div className="mt-4">
-      <div className="flex items-center gap-3 mb-3">
+      <div className="flex items-center gap-3 mb-3 flex-wrap">
         <button
           onClick={onGenerate}
           disabled={generating}
-          className={`${btnBase} bg-[#238636] border-[#238636] text-white hover:bg-[#2ea043] disabled:cursor-not-allowed`}
+          className="btn btn-primary"
         >
+          {generating ? <span className="loading loading-spinner loading-sm" /> : null}
           {generating ? '生成中…' : '生成配置'}
         </button>
         {output && (
           <>
-            <button onClick={handleCopy} className={`${btnBase} bg-[#21262d] border-[#30363d] text-[#c9d1d9] hover:bg-[#30363d]`}>
-              复制
-            </button>
-            <button onClick={handleDownload} className={`${btnBase} bg-[#21262d] border-[#30363d] text-[#c9d1d9] hover:bg-[#30363d]`}>
+            <button onClick={handleCopy} className="btn btn-ghost btn-sm">复制</button>
+            <button onClick={handleDownload} className="btn btn-ghost btn-sm">
               下载 .{target === 'singbox' ? 'json' : 'yaml'}
             </button>
           </>
@@ -51,15 +48,17 @@ export function OutputPanel({ output, error, generating, onGenerate, target, mod
       </div>
 
       {error && (
-        <div className="text-xs text-red-400 bg-[#3d0000] border border-red-800 rounded px-3 py-2 mb-3">
-          {error}
+        <div role="alert" className="alert alert-error mb-3 text-xs">
+          <span>{error}</span>
         </div>
       )}
 
       {output && (
-        <pre className="bg-[#161b22] border border-[#30363d] rounded-lg p-4 text-xs font-mono whitespace-pre-wrap overflow-x-auto max-h-[500px] overflow-y-auto">
-          {output}
-        </pre>
+        <textarea
+          readOnly
+          className="textarea textarea-bordered w-full font-mono text-xs h-96"
+          value={output}
+        />
       )}
     </div>
   )

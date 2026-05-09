@@ -169,11 +169,11 @@ export default function App() {
   }
 
   return (
-    <div className="min-h-screen bg-[#0d1117] text-[#c9d1d9]">
+    <div className="min-h-screen bg-base-100 text-base-content">
       <main className="max-w-3xl mx-auto px-4 py-8">
         <h1 className="text-2xl font-semibold mb-1">hajimihomo</h1>
-        <p className="text-sm text-[#8b949e] mb-6">代理规则配置生成工具 · mihomo / sing-box</p>
-        <div className="text-xs text-[#8b949e] border border-[#30363d] border-l-4 border-l-[#8b949e] rounded px-4 py-3 mb-6">
+        <p className="text-sm opacity-50 mb-6">代理规则配置生成工具 · mihomo / sing-box</p>
+        <div className="text-xs border border-base-300 border-l-4 rounded px-4 py-3 mb-6 opacity-60">
           个人使用，不保证稳定性。规则集来源于公开上游，按需自取。
         </div>
 

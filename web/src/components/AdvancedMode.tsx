@@ -10,14 +10,11 @@ interface Props {
   catalog: CatalogManifest | null
 }
 
-const selectCls = "w-full px-2 py-1.5 bg-[#161b22] border border-[#30363d] rounded text-sm text-[#c9d1d9] focus:outline-none focus:border-[#388bfd]"
-const inputCls = "w-full px-2 py-1.5 bg-[#161b22] border border-[#30363d] rounded text-sm text-[#c9d1d9] focus:outline-none focus:border-[#388bfd] placeholder:text-[#484f58]"
-
 function Toggle({ label, checked, onChange }: { label: string; checked: boolean; onChange: (v: boolean) => void }) {
   return (
-    <label className="flex items-center gap-2 cursor-pointer text-sm">
-      <input type="checkbox" className="accent-[#388bfd]" checked={checked} onChange={e => onChange(e.target.checked)} />
-      {label}
+    <label className="label gap-2 cursor-pointer justify-start">
+      <input type="checkbox" className="toggle toggle-primary toggle-sm" checked={checked} onChange={e => onChange(e.target.checked)} />
+      <span className="label-text">{label}</span>
     </label>
   )
 }
@@ -30,10 +27,10 @@ export function AdvancedMode({ state, dispatch, catalog }: Props) {
       {/* Controls grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         {!isSingbox && (
-          <div>
-            <label className="block text-xs text-[#8b949e] mb-2">分组结构</label>
+          <div className="form-control">
+            <label className="label"><span className="label-text">分组结构</span></label>
             <select
-              className={selectCls}
+              className="select select-bordered w-full"
               value={state.topology}
               onChange={e => dispatch({ type: 'SET_TOPOLOGY', topology: e.target.value as any })}
             >
@@ -45,10 +42,10 @@ export function AdvancedMode({ state, dispatch, catalog }: Props) {
         )}
 
         {!isSingbox && (
-          <div>
-            <label className="block text-xs text-[#8b949e] mb-2">规则集格式</label>
+          <div className="form-control">
+            <label className="label"><span className="label-text">规则集格式</span></label>
             <select
-              className={selectCls}
+              className="select select-bordered w-full"
               value={state.format}
               onChange={e => dispatch({ type: 'SET_FORMAT', format: e.target.value as any })}
             >
@@ -59,10 +56,10 @@ export function AdvancedMode({ state, dispatch, catalog }: Props) {
           </div>
         )}
 
-        <div>
-          <label className="block text-xs text-[#8b949e] mb-2">排除节点关键词（正则）</label>
+        <div className="form-control">
+          <label className="label"><span className="label-text">排除节点关键词（正则）</span></label>
           <input
-            className={inputCls}
+            className="input input-bordered w-full"
             placeholder="例: 5x|10x|0.5x"
             value={state.regionExcludes}
             onChange={e => dispatch({ type: 'SET_REGION_EXCLUDES', regionExcludes: e.target.value })}
@@ -72,8 +69,8 @@ export function AdvancedMode({ state, dispatch, catalog }: Props) {
 
       {/* Blocking toggles */}
       <div>
-        <label className="block text-xs text-[#8b949e] mb-2">拦截规则</label>
-        <div className="flex flex-wrap gap-4">
+        <label className="label"><span className="label-text">拦截规则</span></label>
+        <div className="flex flex-wrap gap-2">
           <Toggle label="广告拦截" checked={state.blockAds} onChange={v => dispatch({ type: 'TOGGLE_FEATURE', key: 'blockAds', value: v })} />
           <Toggle label="追踪拦截" checked={state.blockTracking} onChange={v => dispatch({ type: 'TOGGLE_FEATURE', key: 'blockTracking', value: v })} />
           <Toggle label="屏蔽 QUIC" checked={state.blockQuic} onChange={v => dispatch({ type: 'TOGGLE_FEATURE', key: 'blockQuic', value: v })} />
@@ -95,7 +92,7 @@ export function AdvancedMode({ state, dispatch, catalog }: Props) {
         />
       </div>
 
-      <p className="text-xs text-[#8b949e]">
+      <p className="text-xs opacity-50">
         左侧勾选规则组；高级模式下右侧可创建自定义代理组并拖动排序。
       </p>
     </div>

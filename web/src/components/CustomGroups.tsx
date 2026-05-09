@@ -10,7 +10,11 @@ interface Props {
   onChange: (groups: CustomGroup[]) => void
 }
 
-const selectCls = "px-2 py-1 bg-[#0d1117] border border-[#30363d] rounded text-xs text-[#c9d1d9] focus:outline-none focus:border-[#388bfd]"
+const ACTION_BADGE: Record<string, string> = {
+  PROXY: 'badge-info',
+  DIRECT: 'badge-success',
+  REJECT: 'badge-error',
+}
 
 function SortableCard({ group, onRemove, onRename, onActionChange }: {
   group: CustomGroup
@@ -22,34 +26,38 @@ function SortableCard({ group, onRemove, onRename, onActionChange }: {
   const style = { transform: CSS.Transform.toString(transform), transition }
 
   return (
-    <div ref={setNodeRef} style={style} className="border border-[#30363d] rounded-lg bg-[#161b22] p-3">
-      <div className="flex items-center gap-2 mb-2">
-        <span {...attributes} {...listeners} className="cursor-grab text-[#8b949e] select-none text-lg leading-none">⠿</span>
+    <div ref={setNodeRef} style={style} className="card card-compact bg-base-200 mb-2">
+      <div className="card-body flex-row items-center gap-2">
+        <span {...attributes} {...listeners} className="cursor-grab opacity-50 hover:opacity-100 select-none text-lg leading-none">⠿</span>
         <input
-          className="flex-1 px-2 py-1 bg-[#0d1117] border border-[#30363d] rounded text-xs text-[#c9d1d9] focus:outline-none focus:border-[#388bfd]"
+          className="input input-bordered input-xs flex-1"
           value={group.name}
           onChange={e => onRename(e.target.value)}
         />
-        <select className={`${selectCls} w-24`} value={group.action} onChange={e => onActionChange(e.target.value as any)}>
+        <select
+          className="select select-bordered select-xs w-24"
+          value={group.action}
+          onChange={e => onActionChange(e.target.value as any)}
+        >
           <option value="PROXY">PROXY</option>
           <option value="DIRECT">DIRECT</option>
           <option value="REJECT">REJECT</option>
         </select>
-        <button
-          onClick={onRemove}
-          className="px-2 py-1 text-xs text-[#8b949e] hover:text-[#ff7b72] transition-colors"
-        >✕</button>
+        <button onClick={onRemove} className="btn btn-ghost btn-xs btn-circle text-error">✕</button>
       </div>
-      <div className="space-y-1">
-        {group.members.length === 0 && (
-          <p className="text-xs text-[#8b949e] text-center py-2">从左侧浏览器添加规则组</p>
-        )}
-        {group.members.map((m, mi) => (
-          <div key={mi} className="flex items-center gap-2 text-xs bg-[#0d1117] border border-[#21262d] rounded px-2 py-1">
-            <span className="flex-1 truncate">{m.label || m.id}</span>
-          </div>
-        ))}
-      </div>
+      {group.members.length > 0 && (
+        <div className="px-4 pb-3 space-y-1">
+          {group.members.map((m, mi) => (
+            <div key={mi} className="flex items-center gap-2 text-xs bg-base-100 rounded px-2 py-1">
+              <span className="flex-1 truncate">{m.label || m.id}</span>
+              <span className={`badge badge-xs ${ACTION_BADGE[group.action] ?? 'badge-ghost'}`}>{group.action}</span>
+            </div>
+          ))}
+        </div>
+      )}
+      {group.members.length === 0 && (
+        <p className="text-xs opacity-40 text-center pb-3">从左侧浏览器添加规则组</p>
+      )}
     </div>
   )
 }
@@ -93,19 +101,16 @@ export function CustomGroups({ groups, onChange }: Props) {
   }
 
   return (
-    <div className="border border-[#30363d] rounded-lg bg-[#0d1117] p-3 min-h-[400px] flex flex-col">
-      <div className="flex items-center justify-between mb-2">
-        <div className="text-xs font-semibold text-[#58a6ff]">自定义代理组</div>
-        <button
-          onClick={() => setShowModal(true)}
-          className="px-2 py-1 text-xs bg-[#21262d] border border-[#30363d] rounded text-[#c9d1d9] hover:bg-[#30363d] transition-colors"
-        >+ 新建组</button>
-      </div>
+    <div className="card bg-base-200 min-h-96 flex flex-col">
+      <div className="card-body p-3 flex flex-col gap-2 h-full">
+        <div className="flex items-center justify-between">
+          <div className="text-xs font-bold uppercase tracking-widest opacity-50">自定义代理组</div>
+          <button onClick={() => setShowModal(true)} className="btn btn-sm btn-ghost">+ 新建组</button>
+        </div>
 
-      <div className="flex-1 overflow-y-auto">
-        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-          <SortableContext items={groups.map(g => g.name)} strategy={verticalListSortingStrategy}>
-            <div className="space-y-2">
+        <div className="flex-1 overflow-y-auto">
+          <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+            <SortableContext items={groups.map(g => g.name)} strategy={verticalListSortingStrategy}>
               {groups.map((g, i) => (
                 <SortableCard
                   key={g.name}
@@ -115,56 +120,50 @@ export function CustomGroups({ groups, onChange }: Props) {
                   onActionChange={action => updateGroup(i, { action })}
                 />
               ))}
-            </div>
-          </SortableContext>
-        </DndContext>
-        {groups.length === 0 && (
-          <p className="text-xs text-[#8b949e] text-center py-8">点击"新建组"创建自定义代理组</p>
-        )}
-      </div>
+            </SortableContext>
+          </DndContext>
+          {groups.length === 0 && (
+            <p className="text-xs opacity-40 text-center py-8">点击"新建组"创建自定义代理组</p>
+          )}
+        </div>
 
-      {/* New group modal */}
-      {showModal && (
-        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50" onClick={() => setShowModal(false)}>
-          <div className="bg-[#161b22] border border-[#30363d] rounded-lg p-6 w-80" onClick={e => e.stopPropagation()}>
-            <h3 className="text-sm font-semibold mb-4">新建代理组</h3>
-            <div className="space-y-3">
-              <div>
-                <label className="block text-xs text-[#8b949e] mb-1">组名</label>
-                <input
-                  className="w-full px-2 py-1.5 bg-[#0d1117] border border-[#30363d] rounded text-sm text-[#c9d1d9] focus:outline-none focus:border-[#388bfd]"
-                  value={newName}
-                  onChange={e => setNewName(e.target.value)}
-                  onKeyDown={e => e.key === 'Enter' && addGroup()}
-                  autoFocus
-                />
+        {/* New group modal */}
+        {showModal && (
+          <div className="modal modal-open" onClick={() => setShowModal(false)}>
+            <div className="modal-box" onClick={e => e.stopPropagation()}>
+              <h3 className="font-semibold text-sm mb-4">新建代理组</h3>
+              <div className="space-y-3">
+                <div className="form-control">
+                  <label className="label"><span className="label-text">组名</span></label>
+                  <input
+                    className="input input-bordered w-full"
+                    value={newName}
+                    onChange={e => setNewName(e.target.value)}
+                    onKeyDown={e => e.key === 'Enter' && addGroup()}
+                    autoFocus
+                  />
+                </div>
+                <div className="form-control">
+                  <label className="label"><span className="label-text">默认动作</span></label>
+                  <select
+                    className="select select-bordered w-full"
+                    value={newAction}
+                    onChange={e => setNewAction(e.target.value as any)}
+                  >
+                    <option value="PROXY">PROXY</option>
+                    <option value="DIRECT">DIRECT</option>
+                    <option value="REJECT">REJECT</option>
+                  </select>
+                </div>
               </div>
-              <div>
-                <label className="block text-xs text-[#8b949e] mb-1">默认动作</label>
-                <select
-                  className="w-full px-2 py-1.5 bg-[#0d1117] border border-[#30363d] rounded text-sm text-[#c9d1d9] focus:outline-none focus:border-[#388bfd]"
-                  value={newAction}
-                  onChange={e => setNewAction(e.target.value as any)}
-                >
-                  <option value="PROXY">PROXY</option>
-                  <option value="DIRECT">DIRECT</option>
-                  <option value="REJECT">REJECT</option>
-                </select>
+              <div className="modal-action">
+                <button onClick={() => setShowModal(false)} className="btn btn-ghost btn-sm">取消</button>
+                <button onClick={addGroup} className="btn btn-primary btn-sm">创建</button>
               </div>
-            </div>
-            <div className="flex gap-2 mt-4 justify-end">
-              <button
-                onClick={() => setShowModal(false)}
-                className="px-3 py-1.5 text-xs bg-[#21262d] border border-[#30363d] rounded text-[#c9d1d9] hover:bg-[#30363d]"
-              >取消</button>
-              <button
-                onClick={addGroup}
-                className="px-3 py-1.5 text-xs bg-[#1f6feb] border border-[#1f6feb] rounded text-white hover:bg-[#388bfd]"
-              >创建</button>
             </div>
           </div>
-        </div>
-      )}
+        )}
+      </div>
     </div>
   )
 }

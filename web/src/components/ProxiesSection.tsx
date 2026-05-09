@@ -13,9 +13,7 @@ interface Props {
 export function ProxiesSection({ state, dispatch, catalog }: Props) {
   return (
     <div className="mb-4">
-      <div className="text-xs font-semibold text-[#58a6ff] tracking-wider border-t border-[#30363d] pt-3 mb-3">
-        §2 &nbsp; 代理 &amp; 规则
-      </div>
+      <div className="text-xs font-bold uppercase tracking-widest opacity-50 my-3">§2 代理 &amp; 规则</div>
       {state.mode === 'simple'
         ? <SimpleMode state={state} dispatch={dispatch} />
         : <AdvancedMode state={state} dispatch={dispatch} catalog={catalog} />

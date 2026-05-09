@@ -7,20 +7,15 @@ interface Props {
 
 export function ModeToggle({ mode, onChange }: Props) {
   return (
-    <div className="mb-4 flex border border-[#30363d] rounded overflow-hidden text-sm">
-      {(['simple', 'advanced'] as const).map(m => (
-        <button
-          key={m}
-          onClick={() => onChange(m)}
-          className={`flex-1 py-2 text-sm transition-colors ${
-            mode === m
-              ? 'bg-[#1f6feb] text-white'
-              : 'bg-[#161b22] text-[#8b949e] hover:bg-[#21262d] hover:text-[#c9d1d9]'
-          }`}
-        >
-          {m === 'simple' ? '📋 简单模式' : '⚙️ 高级模式'}
-        </button>
-      ))}
+    <div className="tabs tabs-boxed w-fit mx-auto mb-4">
+      <a
+        className={`tab ${mode === 'simple' ? 'tab-active' : ''}`}
+        onClick={() => onChange('simple')}
+      >📋 简单模式</a>
+      <a
+        className={`tab ${mode === 'advanced' ? 'tab-active' : ''}`}
+        onClick={() => onChange('advanced')}
+      >⚙️ 高级模式</a>
     </div>
   )
 }

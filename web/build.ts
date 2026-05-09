@@ -19,6 +19,15 @@ const result = await Bun.build({
   outdir: "dist",
   target: "browser",
   minify: true,
+  define: {
+    'process.env.NODE_ENV': '"production"',
+  },
+  alias: {
+    'react':             'preact/compat',
+    'react-dom':         'preact/compat',
+    'react-dom/client':  'preact/compat/client',
+    'react/jsx-runtime': 'preact/jsx-runtime',
+  },
 });
 
 if (!result.success) {

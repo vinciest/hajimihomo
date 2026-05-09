@@ -18,9 +18,9 @@ const TIER_LABELS: Record<Tier, string> = {
 }
 
 const ACTION_BADGE: Record<string, string> = {
-  PROXY: 'bg-[#1f3a5f] text-[#79c0ff]',
-  REJECT: 'bg-[#3d0000] text-[#ff7b72]',
-  DIRECT: 'bg-[#0d3c00] text-[#56d364]',
+  PROXY: 'badge-info',
+  REJECT: 'badge-error',
+  DIRECT: 'badge-success',
 }
 
 export function AdvancedBrowser({ selectedGroups, onSelectionChange, onAddToCustomGroup }: Props) {
@@ -68,52 +68,55 @@ export function AdvancedBrowser({ selectedGroups, onSelectionChange, onAddToCust
   }
 
   return (
-    <div className="border border-[#30363d] rounded-lg bg-[#0d1117] p-3 min-h-[400px] flex flex-col">
-      <div className="text-xs font-semibold text-[#58a6ff] mb-2">规则组浏览</div>
-      <input
-        className="w-full px-2 py-1.5 mb-2 bg-[#161b22] border border-[#30363d] rounded text-sm text-[#c9d1d9] focus:outline-none focus:border-[#388bfd] placeholder:text-[#484f58]"
-        placeholder="筛选..."
-        value={filter}
-        onChange={e => setFilter(e.target.value)}
-      />
-      <div className="flex-1 overflow-y-auto space-y-1">
-        {Object.entries(groupsByTier).sort().map(([tier, groups]) => (
-          <div key={tier}>
-            <div
-              className="flex items-center gap-2 px-2 py-1.5 bg-[#161b22] border border-[#30363d] rounded cursor-pointer hover:border-[#388bfd] text-xs"
-              onClick={() => toggleExpand(tier)}
-            >
-              <span className="text-[#58a6ff] text-[10px]">{expanded.has(tier) ? '▼' : '▶'}</span>
-              <span className="flex-1">{TIER_LABELS[tier as Tier] ?? tier}</span>
-              <span
-                className="text-[#8b949e] hover:text-[#58a6ff] px-1"
-                onClick={e => { e.stopPropagation(); selectAll(tier) }}
-              >全选</span>
-              <span className="text-[#8b949e]">{groups.filter(([gid]) => selected.has(gid)).length}/{groups.length}</span>
-            </div>
-            {expanded.has(tier) && (
-              <div className="space-y-0.5 py-1 pl-3">
-                {groups.map(([gid, info]) => (
-                  <label
-                    key={gid}
-                    className="flex items-center gap-2 px-1 py-0.5 rounded hover:bg-[#161b22] cursor-pointer"
-                  >
-                    <input
-                      type="checkbox"
-                      className="accent-[#388bfd] shrink-0"
-                      checked={selected.has(gid)}
-                      onChange={() => toggle(gid)}
-                    />
-                    <span className="text-xs flex-1">{info.name || gid}</span>
-                    <span className={`text-[10px] px-1.5 py-0.5 rounded font-semibold ${ACTION_BADGE[info.defaultAction] ?? 'bg-[#21262d] text-[#8b949e]'}`}>
-                      {info.defaultAction}
-                    </span>
-                  </label>
-                ))}
+    <div className="card bg-base-200 min-h-96 flex flex-col">
+      <div className="card-body p-3 flex flex-col gap-2 h-full">
+        <div className="text-xs font-bold uppercase tracking-widest opacity-50">规则组浏览</div>
+        <input
+          className="input input-bordered input-sm w-full"
+          placeholder="筛选..."
+          value={filter}
+          onChange={e => setFilter(e.target.value)}
+        />
+        <div className="flex-1 overflow-y-auto space-y-1">
+          {Object.entries(groupsByTier).sort().map(([tier, groups]) => (
+            <div key={tier} className="collapse collapse-arrow bg-base-100">
+              <input
+                type="checkbox"
+                checked={expanded.has(tier)}
+                onChange={() => toggleExpand(tier)}
+              />
+              <div className="collapse-title text-xs flex items-center gap-2 py-2 min-h-0">
+                <span className="flex-1">{TIER_LABELS[tier as Tier] ?? tier}</span>
+                <span
+                  className="opacity-50 hover:opacity-100 px-1"
+                  onClick={e => { e.stopPropagation(); selectAll(tier) }}
+                >全选</span>
+                <span className="opacity-50">{groups.filter(([gid]) => selected.has(gid)).length}/{groups.length}</span>
               </div>
-            )}
-          </div>
-        ))}
+              <div className="collapse-content">
+                <div className="space-y-0.5 pt-1">
+                  {groups.map(([gid, info]) => (
+                    <label
+                      key={gid}
+                      className="flex items-center gap-2 px-1 py-0.5 rounded hover:bg-base-200 cursor-pointer"
+                    >
+                      <input
+                        type="checkbox"
+                        className="checkbox checkbox-primary checkbox-xs shrink-0"
+                        checked={selected.has(gid)}
+                        onChange={() => toggle(gid)}
+                      />
+                      <span className="text-xs flex-1">{info.name || gid}</span>
+                      <span className={`badge badge-xs ${ACTION_BADGE[info.defaultAction] ?? 'badge-ghost'}`}>
+                        {info.defaultAction}
+                      </span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
       </div>
     </div>
   )
