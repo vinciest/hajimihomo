@@ -30,7 +30,7 @@ import {
   ICON_BASE, REGION_ICONS, SERVICE_ICONS,
 } from './constants'
 
-const _eta = new Eta({ autoEscape: false })
+const _eta = new Eta({ autoEscape: false, autoTrim: false })
 
 /**
  * Build mihomo rule-providers + ordered rules for selected catalog groups.
