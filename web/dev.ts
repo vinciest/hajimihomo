@@ -7,14 +7,20 @@ import { resolve } from "node:path";
 import { buildCatalogIndex, buildPresetsIndex, buildCategoriesIndex } from "./data-transforms";
 
 // Register plugin BEFORE loading index.html so Bun processes catalog.ts YAML imports correctly
+// Uses onResolve+namespace to ensure plugin takes precedence over Bun's native YAML loader.
+const CATALOG_PATH  = resolve(import.meta.dir, '../source/catalog.yaml')
+const PRESETS_PATH  = resolve(import.meta.dir, '../profiles/presets.yaml')
+
 plugin({
   name: 'source-yaml',
   setup(build) {
-    build.onLoad({ filter: /source\/catalog\.yaml$/ }, async ({ path }) => {
+    build.onResolve({ filter: /source\/catalog\.yaml$/ },   () => ({ path: CATALOG_PATH,  namespace: 'source-yaml' }))
+    build.onResolve({ filter: /profiles\/presets\.yaml$/ }, () => ({ path: PRESETS_PATH,  namespace: 'source-yaml' }))
+    build.onLoad({ filter: /catalog\.yaml$/,  namespace: 'source-yaml' }, async ({ path }) => {
       const text = await Bun.file(path).text()
       return { contents: JSON.stringify(buildCatalogIndex(text)), loader: 'json' }
     })
-    build.onLoad({ filter: /profiles\/presets\.yaml$/ }, async ({ path }) => {
+    build.onLoad({ filter: /presets\.yaml$/, namespace: 'source-yaml' }, async ({ path }) => {
       const text = await Bun.file(path).text()
       return { contents: JSON.stringify(buildPresetsIndex(text)), loader: 'json' }
     })

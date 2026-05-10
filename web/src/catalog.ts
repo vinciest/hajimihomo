@@ -11,13 +11,29 @@ import { RULESETS_URL }  from './constants'
 import type { CatalogManifest, CatalogItem } from './types'
 
 /** Presets bundled at build time from profiles/presets.yaml — no fetch needed. */
-export const presets = (presetsData as Record<string, any>)
+// Defensive: Bun's native YAML loader (pre-plugin) returns {presets: {...}};
+//            the Bun plugin (build.ts) returns the flat index {mini: {...}, ...}.
+const _p = presetsData as any
+export const presets = (_p?.mini || _p?.standard ? _p : (_p?.presets || {})) as Record<string, any>
 
 /** @deprecated Use the presets export directly — kept for backwards compat. */
 export function loadPresets() { return presets }
 
 /** Catalog group metadata bundled at build time — keyed by group ID. */
-export const catalogIndex = catalogIndexData
+// Defensive: Bun native YAML returns {groups: {'block/ads': {default_action,...}}}
+//            Bun plugin returns flat index {'block/ads': {defaultAction,...}}
+const _c = catalogIndexData as any
+export const catalogIndex = (!_c?.groups ? _c : (() => {
+  return Object.fromEntries(Object.entries(_c.groups).map(([gid, d]: [string, any]) => [gid, {
+    name:          d.name          || gid,
+    description:   d.description   || '',
+    defaultAction: d.default_action || 'PROXY',
+    tags:          d.tags          || [],
+    region:        d.region        || 'any',
+    memberCount:   (d.members || []).length,
+    members:       d.members       || [],
+  }]))
+})()) as Record<string, any>
 
 /** Load categories index lazily — fetched from dist/ when Advanced Mode is opened. */
 export async function loadCategoriesIndex(): Promise<Record<string, any>> {
