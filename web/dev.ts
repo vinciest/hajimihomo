@@ -39,6 +39,19 @@ const distDir = resolve(import.meta.dir, 'dist')
 await mkdir(distDir, { recursive: true })
 await writeFile(resolve(distDir, 'categories-index.json'), JSON.stringify(categoriesIndexData))
 
+// Build generator.js so the importmap can resolve it in the browser
+// (The onResolve plugin handles server-side bundling; this covers browser dynamic imports)
+const genResult = await Bun.build({
+  entrypoints: [resolve(import.meta.dir, 'src/generator-exports.ts')],
+  target: 'browser',
+  format: 'esm',
+})
+if (genResult.success) {
+  await writeFile(resolve(distDir, 'generator.js'), await genResult.outputs[0].arrayBuffer())
+} else {
+  console.warn('⚠️  generator.js build failed:', genResult.logs)
+}
+
 // Load index.html AFTER plugin registration
 const { default: index } = await import('./index.html')
 
@@ -76,6 +89,7 @@ Bun.serve({
       return Bun.file(cssPath)
     },
     "/categories-index.json": () => Bun.file(resolve(distDir, 'categories-index.json')),
+    "/generator.js": () => Bun.file(resolve(distDir, 'generator.js')),
     // Always intercept /ruleset/mihomo/* — local file or CDN proxy
     "/ruleset/mihomo/rulesets.json": () =>
       localRulesetsJson

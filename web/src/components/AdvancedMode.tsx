@@ -32,7 +32,11 @@ export function AdvancedMode({ state, dispatch, catalog }: Props) {
             <select
               className="select select-bordered w-full"
               value={state.topology}
-              onChange={e => dispatch({ type: 'SET_TOPOLOGY', topology: e.target.value as any })}
+              onChange={e => {
+                const t = e.target.value as any
+                dispatch({ type: 'SET_TOPOLOGY', topology: t })
+                dispatch({ type: 'TOGGLE_FEATURE', key: 'loadBalance', value: t === 'advanced' })
+              }}
             >
               <option value="global">全局 — 单一代理池</option>
               <option value="regional">分区 — 各地区独立测速（推荐）</option>
@@ -74,9 +78,6 @@ export function AdvancedMode({ state, dispatch, catalog }: Props) {
           <Toggle label="广告拦截" checked={state.blockAds} onChange={v => dispatch({ type: 'TOGGLE_FEATURE', key: 'blockAds', value: v })} />
           <Toggle label="追踪拦截" checked={state.blockTracking} onChange={v => dispatch({ type: 'TOGGLE_FEATURE', key: 'blockTracking', value: v })} />
           <Toggle label="屏蔽 QUIC" checked={state.blockQuic} onChange={v => dispatch({ type: 'TOGGLE_FEATURE', key: 'blockQuic', value: v })} />
-          {state.topology === 'advanced' && (
-            <Toggle label="负载均衡" checked={state.loadBalance} onChange={v => dispatch({ type: 'TOGGLE_FEATURE', key: 'loadBalance', value: v })} />
-          )}
         </div>
       </div>
 
