@@ -90,12 +90,15 @@ Bun.spawn(['./node_modules/.bin/tailwindcss', '-i', 'src/input.css', '-o', 'src/
 Bun.serve({
   routes: {
     "/": index,
-    "/styles.css": () => {
-      const cssPath = resolve(import.meta.dir, 'src/styles.css')
-      return Bun.file(cssPath)
-    },
-    "/categories-index.json": () => Bun.file(resolve(distDir, 'categories-index.json')),
-    "/generator.js": () => Bun.file(resolve(distDir, 'generator.js')),
+    "/styles.css": () => new Response(Bun.file(resolve(import.meta.dir, 'src/styles.css')), {
+      headers: { 'Content-Type': 'text/css; charset=utf-8' },
+    }),
+    "/categories-index.json": () => new Response(Bun.file(resolve(distDir, 'categories-index.json')), {
+      headers: { 'Content-Type': 'application/json; charset=utf-8' },
+    }),
+    "/generator.js": () => new Response(Bun.file(resolve(distDir, 'generator.js')), {
+      headers: { 'Content-Type': 'application/javascript; charset=utf-8' },
+    }),
     // Always intercept /ruleset/mihomo/* — local file or CDN proxy
     "/ruleset/mihomo/rulesets.json": () =>
       localRulesetsJson
