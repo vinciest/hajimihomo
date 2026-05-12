@@ -9,4 +9,4 @@ _pp: &ProxyProvider
     enable: true
     url: *HealthUrl
     interval: 300
-  filter: '^(?!.*(<%= it.junkExclude %>)).*$'
+  filter: '^(?!.*(<%= it.infoPattern %>)).*$'

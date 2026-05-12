@@ -6,7 +6,7 @@ _g_base: &GroupBase
   url: *HealthUrl
   lazy: true
   include-all: true
-  exclude-filter: *RegexGlobalExclude
+  exclude-filter: *FilterInfo
 
 _g_ut: &GroupUrlTest
   <<: *GroupBase

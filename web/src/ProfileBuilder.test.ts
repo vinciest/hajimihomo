@@ -340,11 +340,11 @@ describe('P10-P12 improvements', () => {
     expect(out).toContain('filter: *FilterHK')
   })
 
-  test('anchor block contains RegexGlobalExclude and RegexHighMul', () => {
+  test('anchor block contains FilterInfo and RegexHighMul', () => {
     const out = buildFullProfile(SUBS, GROUPS, catalog, {
       topology: 'regional', target: 'mihomo',
     })
-    expect(out).toContain('&RegexGlobalExclude')
+    expect(out).toContain('&FilterInfo')
     expect(out).toContain('&RegexHighMul')
   })
 

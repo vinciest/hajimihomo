@@ -5,6 +5,7 @@ import { plugin } from 'bun'
 import { readFile, mkdir, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import { buildCatalogIndex, buildPresetsIndex, buildCategoriesIndex } from "./data-transforms";
+import { yamlB64Plugin } from "./src/plugins/yaml-b64";
 
 // Register plugin BEFORE loading index.html so Bun processes catalog.ts YAML imports correctly
 // Uses onResolve+namespace to ensure plugin takes precedence over Bun's native YAML loader.
@@ -26,6 +27,8 @@ plugin({
     })
   }
 })
+
+plugin(yamlB64Plugin)
 
 plugin({
   name: 'hajimihomo-generator',
@@ -51,6 +54,7 @@ const genResult = await Bun.build({
   entrypoints: [resolve(import.meta.dir, 'src/generator-exports.ts')],
   target: 'browser',
   format: 'esm',
+  plugins: [yamlB64Plugin],
 })
 if (genResult.success) {
   await writeFile(resolve(distDir, 'generator.js'), await genResult.outputs[0].arrayBuffer())

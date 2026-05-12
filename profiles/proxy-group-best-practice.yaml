@@ -10,17 +10,16 @@
 
 proxy-group-anchors:
   # § Global filter regexes ───────────────────────────────────────────────────
-  # Applied as exclude-filter on every leaf group to strip junk/announcement nodes.
-  FilterInfo: &FilterInfo "^(?=.*(群|邀请|返利|循环|官网|网站|网址|获取|订阅|流量|到期|机场|下次|版本|官址|备用|过期|已用|联系|客服|邮箱|工单|贩卖|通知|倒卖|防止|国内|地址|频道|无法|说明|使用|提示|访问|支持|教程|关注|更新|作者|加入|(?i)USE|USED|TOTAL|EXPIRE|EMAIL|Panel|Channel|Author|Traffic)).*$"
-
-  # § Region filter anchors ───────────────────────────────────────────────────
-  # Positive lookahead selects region; negative lookahead strips high-mul nodes.
+  # Canonical source: profiles/filters.yaml — edit there, not here.
+  # Values below are mirrored here to keep this file valid standalone YAML.
+  FilterInfo: &FilterInfo '^(?=.*(群|邀请|返利|循环|官网|网站|网址|获取|订阅|流量|到期|机场|下次|版本|官址|备用|过期|已用|联系|客服|邮箱|工单|贩卖|通知|倒卖|防止|国内|地址|频道|无法|说明|使用|提示|访问|支持|教程|关注|更新|作者|加入|(?i)USE|USED|TOTAL|EXPIRE|EMAIL|Panel|Channel|Author|Traffic)).*$'
+  RegexHighMul: &RegexHighMul 'X5|5x|X10|10x|DirectAccess|移动网络|禁止下载|禁止视频'
   FilterHK: &FilterHK '^(?=.*(?i)(🇭🇰|\b港\b|香港|HK|HKG|Hong ?Kong))(?!.*(X5|5x|X10|10x|DirectAccess|移动网络|禁止下载|禁止视频)).*$'
   FilterTW: &FilterTW '^(?=.*(?i)(🇹🇼|\b台\b|台湾|TW|TWN|Taiwan|TPE|TSA|KHH))(?!.*(X5|5x|X10|10x|DirectAccess|移动网络|禁止下载|禁止视频)).*$'
-  FilterUS: &FilterUS '^(?=.*(?i)(🇺🇸|\b美\b|美国|US|USA|United ?States|SJC|JFK|LAX|ORD|ATL|DFW|SFO|MIA|SEA|IAD|波特兰|达拉斯|俄勒冈|凤凰城|费利蒙|硅谷|拉斯维加斯|洛杉矶|圣何塞|圣克拉拉|西雅图|芝加哥))(?!.*(X5|5x|X10|10x|DirectAccess|移动网络|禁止下载|禁止视频)).*$'
+  FilterSG: &FilterSG '^(?=.*(?i)(🇸🇬|\b坡\b|狮城|SG|SGP|Singapore|SIN|XSP|新加坡))(?!.*(X5|5x|X10|10x|DirectAccess|移动网络|禁止下载|禁止视频)).*$'
   FilterJP: &FilterJP '^(?=.*(?i)(🇯🇵|\b日\b|日本|JP|JPN|Japan|NRT|HND|KIX|CTS|FUK|东京|大阪|泉日|埼玉|沪日|深日|川日))(?!.*(X5|5x|X10|10x|DirectAccess|移动网络|禁止下载|禁止视频)).*$'
   FilterKR: &FilterKR '^(?=.*(?i)(🇰🇷|\b韩\b|韩国|KR|KOR|Korea|南朝鲜|首尔))(?!.*(X5|5x|X10|10x|DirectAccess|移动网络|禁止下载|禁止视频)).*$'
-  FilterSG: &FilterSG '^(?=.*(?i)(🇸🇬|\b坡\b|狮城|SG|SGP|Singapore|SIN|XSP|新加坡))(?!.*(X5|5x|X10|10x|DirectAccess|移动网络|禁止下载|禁止视频)).*$'
+  FilterUS: &FilterUS '^(?=.*(?i)(🇺🇸|\b美\b|美国|US|USA|United ?States|SJC|JFK|LAX|ORD|ATL|DFW|SFO|MIA|SEA|IAD|波特兰|达拉斯|俄勒冈|凤凰城|费利蒙|硅谷|拉斯维加斯|洛杉矶|圣何塞|圣克拉拉|西雅图|芝加哥))(?!.*(X5|5x|X10|10x|DirectAccess|移动网络|禁止下载|禁止视频)).*$'
   FilterEU: &FilterEU '^(?=.*(?i)(奥|比|保|克罗地亚|塞|捷|丹|爱沙|芬|法|德|希|匈|爱|意|拉|立|卢|马|荷|波|葡|罗|西|瑞典|英|🇩🇪|🇫🇷|🇬🇧|🇳🇱|🇸🇪|CDG|FRA|AMS|LHR|MUC))(?!.*(X5|5x|X10|10x|DirectAccess|移动网络|禁止下载|禁止视频)).*$'
 
   # § Group type anchors ──────────────────────────────────────────────────────
@@ -31,23 +30,23 @@ proxy-group-anchors:
     lazy: true
     include-all: true
     exclude-filter: *FilterInfo
-  GroupUT: &GroupUT
+  GroupUrlTest: &GroupUrlTest
     <<: *GroupBase
     type: "url-test"
     interval: 180
     tolerance: 50
-  GroupFB: &GroupFB
+  GroupFallback: &GroupFallback
     <<: *GroupBase
     type: "fallback"
     interval: 300
     tolerance: 100
-  GroupCH: &GroupCH
+  GroupLBHash: &GroupLBHash
     <<: *GroupBase
     type: "load-balance"
     strategy: "consistent-hashing"
     interval: 300
     tolerance: 100
-  GroupRR: &GroupRR
+  GroupLBRobin: &GroupLBRobin
     <<: *GroupBase
     type: "load-balance"
     strategy: "round-robin"
@@ -266,39 +265,39 @@ proxy-groups:
   # Each line only needs: name, anchor ref (<<:), filter, hidden.
 
   # Hong Kong — 4 leaves (高速/可用/散列/轮询); primary region, worth full set
-  - {name: 香港高速, <<: *GroupUT, filter: *FilterHK, hidden: true}
-  - {name: 香港可用, <<: *GroupFB, filter: *FilterHK, hidden: true}
-  - {name: 香港均衡, <<: *GroupCH, filter: *FilterHK, hidden: true}
+  - {name: 香港高速, <<: *GroupUrlTest, filter: *FilterHK, hidden: true}
+  - {name: 香港可用, <<: *GroupFallback, filter: *FilterHK, hidden: true}
+  - {name: 香港均衡, <<: *GroupLBHash, filter: *FilterHK, hidden: true}
 
   # Taiwan — 4 leaves
-  - {name: 台湾高速, <<: *GroupUT, filter: *FilterTW, hidden: true}
-  - {name: 台湾可用, <<: *GroupFB, filter: *FilterTW, hidden: true}
-  - {name: 台湾均衡, <<: *GroupCH, filter: *FilterTW, hidden: true}
+  - {name: 台湾高速, <<: *GroupUrlTest, filter: *FilterTW, hidden: true}
+  - {name: 台湾可用, <<: *GroupFallback, filter: *FilterTW, hidden: true}
+  - {name: 台湾均衡, <<: *GroupLBHash, filter: *FilterTW, hidden: true}
 
   # United States — 3 leaves (no 轮询: US nodes typically fewer, consistent-hashing sufficient)
-  - {name: 美国高速, <<: *GroupUT, filter: *FilterUS, hidden: true}
-  - {name: 美国可用, <<: *GroupFB, filter: *FilterUS, hidden: true}
-  - {name: 美国均衡, <<: *GroupCH, filter: *FilterUS, hidden: true}
+  - {name: 美国高速, <<: *GroupUrlTest, filter: *FilterUS, hidden: true}
+  - {name: 美国可用, <<: *GroupFallback, filter: *FilterUS, hidden: true}
+  - {name: 美国均衡, <<: *GroupLBHash, filter: *FilterUS, hidden: true}
 
   # Singapore — 3 leaves
-  - {name: 狮城高速, <<: *GroupUT, filter: *FilterSG, hidden: true}
-  - {name: 狮城可用, <<: *GroupFB, filter: *FilterSG, hidden: true}
-  - {name: 狮城均衡, <<: *GroupCH, filter: *FilterSG, hidden: true}
+  - {name: 狮城高速, <<: *GroupUrlTest, filter: *FilterSG, hidden: true}
+  - {name: 狮城可用, <<: *GroupFallback, filter: *FilterSG, hidden: true}
+  - {name: 狮城均衡, <<: *GroupLBHash, filter: *FilterSG, hidden: true}
 
   # Japan — 3 leaves
-  - {name: 日本高速, <<: *GroupUT, filter: *FilterJP, hidden: true}
-  - {name: 日本可用, <<: *GroupFB, filter: *FilterJP, hidden: true}
-  - {name: 日本均衡, <<: *GroupCH, filter: *FilterJP, hidden: true}
+  - {name: 日本高速, <<: *GroupUrlTest, filter: *FilterJP, hidden: true}
+  - {name: 日本可用, <<: *GroupFallback, filter: *FilterJP, hidden: true}
+  - {name: 日本均衡, <<: *GroupLBHash, filter: *FilterJP, hidden: true}
 
   # Korea — 3 leaves
-  - {name: 韩国高速, <<: *GroupUT, filter: *FilterKR, hidden: true}
-  - {name: 韩国可用, <<: *GroupFB, filter: *FilterKR, hidden: true}
-  - {name: 韩国均衡, <<: *GroupCH, filter: *FilterKR, hidden: true}
+  - {name: 韩国高速, <<: *GroupUrlTest, filter: *FilterKR, hidden: true}
+  - {name: 韩国可用, <<: *GroupFallback, filter: *FilterKR, hidden: true}
+  - {name: 韩国均衡, <<: *GroupLBHash, filter: *FilterKR, hidden: true}
 
   # Europe — 3 leaves
-  - {name: 欧盟高速, <<: *GroupUT, filter: *FilterEU, hidden: true}
-  - {name: 欧盟可用, <<: *GroupFB, filter: *FilterEU, hidden: true}
-  - {name: 欧盟均衡, <<: *GroupCH, filter: *FilterEU, hidden: true}
+  - {name: 欧盟高速, <<: *GroupUrlTest, filter: *FilterEU, hidden: true}
+  - {name: 欧盟可用, <<: *GroupFallback, filter: *FilterEU, hidden: true}
+  - {name: 欧盟均衡, <<: *GroupLBHash, filter: *FilterEU, hidden: true}
 
   # ── Optional: smart leaf variant (vernesong fork only) ───────────────────
   # Replace 高速 leaves above with these if using the smart kernel.

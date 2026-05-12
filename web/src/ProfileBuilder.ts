@@ -12,27 +12,44 @@ import type { CatalogManifest, ProfileOptions, CustomGroup } from './types'
  */
 
 import { Eta } from 'eta'
-import coreTmpl          from '../../profiles/defaults/core.yaml.eta'             with { type: 'text' }
-import geodataTmpl       from '../../profiles/defaults/geodata.yaml.eta'          with { type: 'text' }
-import profileTmpl       from '../../profiles/defaults/profile.yaml.eta'          with { type: 'text' }
-import dnsText           from '../../profiles/defaults/dns.yaml'                  with { type: 'text' }
-import snifferText       from '../../profiles/defaults/sniffer.yaml'              with { type: 'text' }
-import tunText           from '../../profiles/defaults/tun.yaml'                  with { type: 'text' }
-import ruleProviderAnchors         from '../../profiles/defaults/rule-provider-anchors.yaml'         with { type: 'text' }
-import proxyGroupStrategyAnchors   from '../../profiles/defaults/proxy-group-strategy-anchors.yaml'   with { type: 'text' }
-import proxyProviderAnchorsTmpl    from '../../profiles/defaults/proxy-provider-anchors.yaml.eta'      with { type: 'text' }
-import proxyGroupRegionAnchorsTmpl from '../../profiles/defaults/proxy-group-region-anchors.yaml.eta'  with { type: 'text' }
+import coreTmpl          from './templates/core.yaml.eta'             with { type: 'text' }
+import geodataTmpl       from './templates/geodata.yaml.eta'          with { type: 'text' }
+import profileTmpl       from './templates/profile.yaml.eta'          with { type: 'text' }
+import proxyProviderAnchorsTmpl    from './templates/proxy-provider-anchors.yaml.eta'      with { type: 'text' }
+import proxyGroupRegionAnchorsTmpl from './templates/proxy-group-region-anchors.yaml.eta'  with { type: 'text' }
+import _dnsB64                    from '../../profiles/defaults/dns.yaml'
+import _snifferB64                from '../../profiles/defaults/sniffer.yaml'
+import _tunB64                    from '../../profiles/defaults/tun.yaml'
+import _ruleProviderAnchorsB64    from '../../profiles/defaults/rule-provider-anchors.yaml'
+import _proxyGroupStrategyB64     from '../../profiles/defaults/proxy-group-strategy-anchors.yaml'
+import filtersData                from '../../profiles/filters.yaml'
 import {
   CDN_BASE, RELEASES_BASE, RULESETS_URL,
   SPLIT_ORDER, SPLIT_BEHAVIOR,
   GEODATA_SOURCES,
   SERVICE_MAP, _REGIONS, _FALLBACK_REGIONS, _DIRECT_GROUPS, _REJECT_GROUPS,
-  _JUNK_EXCLUDE, _HIGH_MUL_EXCLUDE,
   ICON_BASE, ORZ3_BASE, REGION_ICONS, SERVICE_ICONS, BLOCK_ICONS,
   RULE_INTERVAL,
 } from './constants'
 
+/** UTF-8-safe base64 decode — works in both browser (TextDecoder) and Node/Bun (Buffer). */
+function _decode(b) {
+  if (typeof Buffer !== 'undefined') return Buffer.from(b, 'base64').toString('utf8')
+  return new TextDecoder().decode(Uint8Array.from(atob(b), c => c.charCodeAt(0)))
+}
+
+// Decoded YAML text blobs (lazily decoded on first access via module-level const is fine —
+// called only during profile generation, not at module load time in tests).
+const _dns     = () => _decode(_dnsB64)
+const _sniffer = () => _decode(_snifferB64)
+const _tun     = () => _decode(_tunB64)
+const _ruleProviderAnchors    = () => _decode(_ruleProviderAnchorsB64)
+const _proxyGroupStrategyAnchors = () => _decode(_proxyGroupStrategyB64)
+
 const _eta = new Eta({ autoEscape: false, autoTrim: false })
+
+// Lookup map from region key → filters.yaml region entry (pattern + filter)
+const _filtersByKey = new Map(filtersData.regions.map(r => [r.key, r]))
 
 /**
  * Build mihomo rule-providers + ordered rules for selected catalog groups.
@@ -198,7 +215,7 @@ export function buildMihomoGroups(subUrls: string[], groupIds: string[], catalog
 function _slug2(gid) { return gid.replace(/\//g, '-') }
 function _autoType(target) { return target === 'mihomo-smart' ? 'smart' : 'url-test' }
 function _regionFilter(pattern, exclude) {
-  const parts = [_HIGH_MUL_EXCLUDE, exclude].filter(Boolean)
+  const parts = [filtersData.HighMulPattern, exclude].filter(Boolean)
   const neg = parts.length ? `(?!.*(?:${parts.join('|')}))` : ''
   return `^(?=.*(?i)(${pattern}))${neg}.*$`
 }
@@ -215,7 +232,7 @@ function _serviceIconUrl(gid) {
 
 /** Filter regex WITHOUT user regionExcludes — for anchor block definitions. */
 function _regionFilterValue(pattern) {
-  return `^(?=.*(?i)(${pattern}))(?!.*(?:${_HIGH_MUL_EXCLUDE})).*$`
+  return `^(?=.*(?i)(${pattern}))(?!.*(?:${filtersData.HighMulPattern})).*$`
 }
 
 /** Build eta template context for proxy-group-anchors.yaml.eta. */
@@ -224,19 +241,22 @@ function _proxyGroupAnchorCtx(topology, target) {
     ? ['高速', '可用', '均衡-散列']
     : ['高速', '可用']
   return {
-    regexExclude: _JUNK_EXCLUDE,
-    regexHighMul: _HIGH_MUL_EXCLUDE,
+    filterInfo: filtersData.FilterInfo,
+    regexHighMul: filtersData.HighMulPattern,
     smart: target === 'mihomo-smart',
-    regions: topology === 'global' ? [] : _REGIONS.map(r => ({
-      name: r.name,
-      key: r.key,
-      filterValue: _regionFilterValue(r.pattern),
-      proxies: [
-        ...leafSuffixes.map(s => `${r.name}${s}`),
-        ..._REGIONS.filter(rr => rr.key !== r.key).map(rr => `${rr.name}策略`),
-        'Proxy', 'DIRECT',
-      ],
-    })),
+    regions: topology === 'global' ? [] : _REGIONS.map(r => {
+      const fd = _filtersByKey.get(r.key)
+      return {
+        name: r.name,
+        key: r.key,
+        filterValue: filtersData[`Filter${r.key}`] || _regionFilterValue(fd?.pattern ?? ''),
+        proxies: [
+          ...leafSuffixes.map(s => `${r.name}${s}`),
+          ..._REGIONS.filter(rr => rr.key !== r.key).map(rr => `${rr.name}策略`),
+          'Proxy', 'DIRECT',
+        ],
+      }
+    }),
     allRegionStrategies: _REGIONS.map(r => `${r.name}策略`),
   }
 }
@@ -262,7 +282,7 @@ function _buildProxyGroups(groupIds, { topology, target, features, regionExclude
     name: '通知公告',
     type: 'select',
     'include-all': true,
-    filter: '*RegexGlobalExclude',
+    filter: '*FilterInfo',
     icon: `https://fastly.jsdelivr.net/gh/hfg-gmuend/openmoji@15.1.0/color/svg/1F4E2.svg`,
   })
 
@@ -278,7 +298,7 @@ function _buildProxyGroups(groupIds, { topology, target, features, regionExclude
       name: 'Proxy', type: 'select',
       proxies: strategyNames,
       'include-all': true,
-      'exclude-filter': '*RegexGlobalExclude',
+      'exclude-filter': '*FilterInfo',
       icon: `${ORZ3_BASE}/Vpn.png`,
     })
   }
@@ -354,7 +374,7 @@ function _buildProxyGroups(groupIds, { topology, target, features, regionExclude
   if (topology !== 'global') {
     // Tier 3: strategy groups
     for (const r of _REGIONS) {
-      const filter = useFilterAnchors ? `*Filter${r.key}` : _regionFilter(r.pattern, regionExcludes)
+      const filter = useFilterAnchors ? `*Filter${r.key}` : _regionFilter(_filtersByKey.get(r.key)?.pattern ?? '', regionExcludes)
       const leafNames = [`${r.name}高速`, `${r.name}可用`]
       if (topology === 'advanced') leafNames.push(`${r.name}均衡-散列`, `${r.name}均衡-轮询`)
 
@@ -364,7 +384,7 @@ function _buildProxyGroups(groupIds, { topology, target, features, regionExclude
         proxies: leafNames,
         'include-all': true,
         filter,
-        'exclude-filter': '*RegexGlobalExclude',
+        'exclude-filter': '*FilterInfo',
       }
       if (REGION_ICONS[r.name]) strat.icon = `${ICON_BASE}/${REGION_ICONS[r.name]}`
       groups.push(strat)
@@ -374,11 +394,11 @@ function _buildProxyGroups(groupIds, { topology, target, features, regionExclude
     const anchorForAutoType = autoType === 'smart' ? 'GroupSmart' : 'GroupUrlTest'
     // Smart leaf groups need explicit include-all/exclude-filter (GroupSmart doesn't extend GroupBase)
     const smartExtra = autoType === 'smart'
-      ? { 'include-all': true, 'exclude-filter': '*RegexGlobalExclude' }
+      ? { 'include-all': true, 'exclude-filter': '*FilterInfo' }
       : {}
 
     for (const r of _REGIONS) {
-      const filter = useFilterAnchors ? `*Filter${r.key}` : _regionFilter(r.pattern, regionExcludes)
+      const filter = useFilterAnchors ? `*Filter${r.key}` : _regionFilter(_filtersByKey.get(r.key)?.pattern ?? '', regionExcludes)
 
       groups.push({ name: `${r.name}高速`, _anchorRef: anchorForAutoType, filter, hidden: true, ...smartExtra })
       groups.push({ name: `${r.name}可用`,  _anchorRef: 'GroupFallback',  filter, hidden: true })
@@ -393,7 +413,7 @@ function _buildProxyGroups(groupIds, { topology, target, features, regionExclude
   {
     const anchorForAutoType = autoType === 'smart' ? 'GroupSmart' : 'GroupUrlTest'
     const smartExtra = autoType === 'smart'
-      ? { 'include-all': true, 'exclude-filter': '*RegexGlobalExclude' }
+      ? { 'include-all': true, 'exclude-filter': '*FilterInfo' }
       : {}
     groups.push({ name: '全部', _anchorRef: anchorForAutoType, hidden: true, ...smartExtra })
   }
@@ -515,7 +535,7 @@ function _buildRules2(groupIds, catalog, effectiveMap, features, format = 'yaml-
 
 function _renderProxyProviders(subUrls) {
   const anchorText = _tmpl(proxyProviderAnchorsTmpl, {
-    junkExclude: _JUNK_EXCLUDE,
+    infoPattern: filtersData.InfoPattern,
   })
   if (!subUrls.length) {
     return (
@@ -593,7 +613,7 @@ function _renderProxyGroups(groups, topology, target) {
   const ctx = _proxyGroupAnchorCtx(topology, target)
   const anchorBlock = _tmpl(proxyGroupRegionAnchorsTmpl, ctx)
 
-  const lines = [anchorBlock.trimEnd(), '', proxyGroupStrategyAnchors.trimEnd(), '', 'proxy-groups:']
+  const lines = [anchorBlock.trimEnd(), '', _proxyGroupStrategyAnchors().trimEnd(), '', 'proxy-groups:']
   for (const g of groups) {
     const anchor = _groupAnchorName(g)
     const skip   = _GROUP_ANCHOR_COVERS[anchor] || new Set()
@@ -623,7 +643,7 @@ function _anchorFor(prov) {
 
 /** Renders the rule-providers section, emitting YAML anchors. */
 function _renderRuleProviders(ruleProviders) {
-  const anchorText = ruleProviderAnchors.trimEnd()
+  const anchorText = _ruleProviderAnchors().trimEnd()
   const lines = [
     anchorText.trimEnd(),
     '',
@@ -648,9 +668,9 @@ function _buildSections(target, features, geodata, rules) {
     core:    _tmpl(coreTmpl,     { dashboard: !!features.dashboard, smart }),
     geodata: _tmpl(geodataTmpl,  u),
     profile: _tmpl(profileTmpl,  { smart }),
-    dns:     dnsText.trimEnd(),
-    sniffer: snifferText.trimEnd(),
-    tun:     features.tun_enable ? tunText.trimEnd() : '',
+    dns:     _dns().trimEnd(),
+    sniffer: _sniffer().trimEnd(),
+    tun:     features.tun_enable ? _tun().trimEnd() : '',
     rules:   'rules:\n' + rules.map(r => `  - ${r}`).join('\n'),
   }
 }

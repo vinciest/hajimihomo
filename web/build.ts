@@ -1,6 +1,7 @@
 // @ts-nocheck — run with `bun run build.ts`
 import { rm } from "node:fs/promises";
 import { buildCatalogIndex, buildPresetsIndex } from "./data-transforms";
+import { yamlB64Plugin } from "./src/plugins/yaml-b64";
 
 await rm("dist", { recursive: true, force: true });
 
@@ -36,6 +37,7 @@ const generatorResult = await Bun.build({
   target: 'browser',
   format: 'esm',
   minify: true,
+  plugins: [yamlB64Plugin],
 })
 if (!generatorResult.success) {
   for (const msg of generatorResult.logs) console.error(msg)
@@ -52,7 +54,7 @@ const result = await Bun.build({
   outdir: "dist",
   target: "browser",
   minify: true,
-  plugins: [sourceYamlPlugin],
+  plugins: [sourceYamlPlugin, yamlB64Plugin],
   external: ['hajimihomo-generator'],
   define: {
     'process.env.NODE_ENV': '"production"',

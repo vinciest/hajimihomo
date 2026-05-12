@@ -80,17 +80,15 @@ export const SERVICE_MAP = {
 }
 
 export const _REGIONS = [
-  { name: '香港', key: 'HK', pattern: '港|香港|🇭🇰|HK|HKG|Hong ?Kong' },
-  { name: '台湾', key: 'TW', pattern: '台|台湾|🇹🇼|TW|TWN|Taiwan|TPE|TSA|KHH' },
-  { name: '狮城', key: 'SG', pattern: '坡|狮城|新加坡|🇸🇬|SG|SGP|Singapore|SIN|XSP' },
-  { name: '日本', key: 'JP', pattern: '日|日本|🇯🇵|JP|JPN|Japan|NRT|HND|KIX|CTS|FUK|东京|大阪|泉日|埼玉|沪日|深日|川日' },
-  { name: '韩国', key: 'KR', pattern: '韩|韩国|🇰🇷|KR|KOR|Korea|南朝鲜|首尔' },
-  { name: '美国', key: 'US', pattern: '美|美国|🇺🇸|US|USA|United ?States|SJC|JFK|LAX|ORD|ATL|DFW|SFO|MIA|SEA|IAD|波特兰|达拉斯|俄勒冈|凤凰城|费利蒙|硅谷|拉斯维加斯|洛杉矶|圣何塞|圣克拉拉|西雅图|芝加哥' },
-  { name: '欧盟', key: 'EU', pattern: '奥|比|保|克罗地亚|塞|捷|丹|爱沙|芬|法|德|希|匈|爱|意|拉|立|卢|马|荷|波|葡|罗|西|瑞典|英|🇩🇪|🇫🇷|🇬🇧|🇳🇱|🇸🇪|CDG|FRA|AMS|LHR|MUC' },
+  { name: '香港', key: 'HK' },
+  { name: '台湾', key: 'TW' },
+  { name: '狮城', key: 'SG' },
+  { name: '日本', key: 'JP' },
+  { name: '韩国', key: 'KR' },
+  { name: '美国', key: 'US' },
+  { name: '欧盟', key: 'EU' },
 ]
 export const _FALLBACK_REGIONS = ['香港', '狮城', '日本', '美国']
-export const _JUNK_EXCLUDE = '群|邀请|返利|循环|官网|网站|网址|获取|订阅|流量|到期|机场|下次|版本|官址|备用|过期|已用|联系|客服|邮箱|工单|贩卖|通知|倒卖|防止|国内|地址|频道|无法|说明|使用|提示|访问|支持|教程|关注|更新|作者|加入|(?i)USE|USED|TOTAL|EXPIRE|EMAIL|Panel|Channel|Author|Traffic'
-export const _HIGH_MUL_EXCLUDE = 'X5|5x|X10|10x|DirectAccess|移动网络|禁止下载|禁止视频'
 export const _DIRECT_GROUPS = new Set(['direct/cn', 'direct/cn-ips', 'direct/cn-no-media', 'meta/cn'])
 export const _REJECT_GROUPS = new Set(['block/ads', 'block/ads-lite', 'block/tracking', 'meta/block'])
 
