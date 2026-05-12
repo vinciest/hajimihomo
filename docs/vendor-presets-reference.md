@@ -614,20 +614,7 @@ AND,((DST-PORT,443),(NETWORK,UDP),(NOT,((GEOIP,CN)))),REJECT
 This only blocks QUIC for non-CN destinations, avoiding breaking domestic services.
 
 ### 3. Region filter regex (production-quality)
-```
-HK: ^(?=.*(?i)(港|🇭🇰|HK|Hong|HKG))(?!.*(排除关键词|X5|5x|X10|10x)).*$
-TW: ^(?=.*(?i)(台|🇹🇼|TW|TWN|Taiwan|TPE|TSA|KHH))(?!.*(排除关键词)).*$
-JP: ^(?=.*(?i)(日|🇯🇵|JP|Japan|NRT|HND|KIX|CTS|FUK))(?!.*(排除关键词)).*$
-SG: ^(?=.*(?i)(坡|🇸🇬|SG|Sing|SIN|XSP))(?!.*(排除关键词)).*$
-KR: ^(?=.*(?i)(韩|🇰🇷|韓|首尔|南朝鲜|KR|KOR|Korea|ICN))(?!.*(排除关键词)).*$
-US: ^(?=.*(?i)(美|🇺🇸|US|USA|SJC|JFK|LAX|ORD|ATL|DFW|SFO|MIA|SEA|IAD))(?!.*(排除关键词)).*$
-EU: ^(?=.*(?i)(奥|比|保|克罗地亚|塞|捷|丹|爱沙|芬|法|德|希|匈|爱|意|拉|立|卢|马|荷|波|葡|罗|斯洛文|斯洛伐|西|瑞典|英|🇩🇪|🇫🇷|🇬🇧|🇳🇱|🇸🇪|CDG|FRA|AMS|LHR|FCO|FRA|MUC)).*$
-```
-
-Exclusion filter (remove spam/announcement nodes):
-```
-^(?!.*(群|邀请|返利|循环|官网|客服|网站|网址|获取|订阅|流量|到期|机场|下次|版本|官址|备用|过期|已用|联系|邮箱|工单|贩卖|通知|倒卖|防止|国内|地址|频道|无法|说明|使用|提示|特别|访问|支持|教程|关注|更新|作者|加入|USE|USED|TOTAL|EXPIRE|EMAIL|Panel|Channel|Author))
-```
+→ See `docs/proxy-group-filter-patterns.md §5.3` for the full filter reference table and regex patterns.
 
 ### 4. fake-ip-filter best practices
 666OS uses rule-set references (requires mihomo ≥ 1.18):
@@ -669,36 +656,7 @@ The first proxy in a service group's list is the default. Community conventions:
 | mihomo-smart | smart × regions | regional智能 + quality fallback chains |
 
 ### 7. YAML anchor templates (from 666OS/OneSmartPro)
-666OS configs use compact one-line YAML with anchors for clean, DRY definitions:
-```yaml
-# Group type templates
-BaseFB:    &BaseFB    {type: fallback,      interval: 200, lazy: true, url: 'https://www.google.com/generate_204'}
-BaseLB:    &BaseLB    {type: load-balance,  interval: 200, lazy: true, url: 'https://www.google.com/generate_204'}
-BaseSmart: &BaseSmart {type: smart,         interval: 200, lazy: true, url: 'https://www.google.com/generate_204', hidden: true, uselightgbm: true}
-
-# Region filter anchors
-FilterHK: &FilterHK '^(?=.*(?i)(港|🇭🇰|HK|Hong|HKG))(?!.*(排除1|排除2|5x)).*$'
-FilterTW: &FilterTW '^(?=.*(?i)(台|🇹🇼|TW|TWN|Taiwan|TPE|TSA|KHH))(?!.*(排除)).*$'
-FilterJP: &FilterJP '^(?=.*(?i)(日|🇯🇵|JP|Japan|NRT|HND|KIX|CTS|FUK))(?!.*(排除)).*$'
-FilterSG: &FilterSG '^(?=.*(?i)(坡|🇸🇬|SG|Sing|SIN|XSP))(?!.*(排除)).*$'
-FilterKR: &FilterKR '^(?=.*(?i)(韩|🇰🇷|韓|首尔|南朝鲜|KR|KOR|Korea|ICN))(?!.*(排除)).*$'
-FilterUS: &FilterUS '^(?=.*(?i)(美|🇺🇸|US|USA|SJC|JFK|LAX|ORD|ATL|DFW|SFO|MIA|SEA|IAD))(?!.*(排除)).*$'
-FilterEU: &FilterEU '^(?=.*(?i)(奥|比|保|克罗地亚|塞|捷|丹|爱沙|芬|法|德|希|匈|爱|意|拉|立|卢|马|荷|波|葡|罗|西|瑞典|英|🇩🇪|🇫🇷|🇬🇧|🇳🇱|🇸🇪|CDG|FRA|AMS|LHR|MUC)).*$'
-
-# Proxy provider template
-BaseProvider: &BaseProvider
-  type: http
-  interval: 86400
-  proxy: DIRECT
-  health-check: {enable: true, url: 'https://www.google.com/generate_204', interval: 300}
-  filter: '^(?!.*(群|邀请|返利|循环|官网|客服|网站|网址|获取|订阅|流量|到期|机场|下次|版本|官址|备用|过期|已用|联系|邮箱|工单|贩卖|通知|倒卖|防止|国内|地址|频道|无法|说明|使用|提示|特别|访问|支持|教程|关注|更新|作者|加入|USE|USED|TOTAL|EXPIRE|EMAIL|Panel|Channel|Author))'
-
-# Usage in group definition:
-- {name: 香港智能, <<: *BaseSmart, filter: *FilterHK, include-all: true, policy-priority: '优:2;中:1;备:0.5', icon: https://github.com/Koolson/Qure/raw/master/IconSet/Color/Hong_Kong.png}
-```
-
-`policy-priority` is a `smart` group feature (vernesong/mihomo fork only): weights named node tiers.
-Format: `'优:2;中:1;备:0.5'` — nodes matching keyword `优` get weight 2, `中` get 1, `备` get 0.5.
+→ See `docs/proxy-group-filter-patterns.md §11a` for complete compact one-liner anchor syntax (group types, region filters, provider template, usage examples).
 
 ### 8. Group icons (Koolson/Qure CDN)
 ```
