@@ -40,52 +40,63 @@ export const GEODATA_SOURCES = {
   },
 }
 
+// ── Health check / intervals / icon bases ─────────────────────────────────────
+
+export const HEALTH_URL = 'https://cp.cloudflare.com/generate_204'
+export const RULE_INTERVAL = 86400
+export const ORZ3_BASE = 'https://fastly.jsdelivr.net/gh/Orz-3/mini@master/Color'
+
 // ── Proxy group configuration ──────────────────────────────────────────────────
 
-// Maps catalog group ID → [display name, preferred region order]
+// Maps catalog group ID → [display name, preferred: string[]|null, anchorKey: string|null]
+// preferred = null  → use anchor default proxies (don't emit explicit proxies list)
+// preferred = []    → empty override (emit Proxy+DIRECT only, e.g. block/direct groups)
+// anchorKey         → region key ('HK','US',...) or 'Proxy' or 'Direct' or null
 export const SERVICE_MAP = {
-  'block/ads':          ['🚫 广告拦截',   []],
-  'block/ads-lite':     ['🚫 广告(轻)',   []],
-  'block/tracking':     ['🕵 追踪拦截',   []],
-  'direct/cn':          ['🇨🇳 直连',     []],
-  'direct/cn-ips':      ['🇨🇳 直连IP',   []],
-  'direct/cn-no-media': ['🇨🇳 直连(无媒体)', []],
-  'proxy/google':       ['🔍 Google',    ['香港', '美国', '默认代理']],
-  'proxy/youtube':      ['▶️  YouTube',   ['香港', '美国', '默认代理']],
-  'proxy/apple':        ['🍎 Apple',     ['直接连接', '香港', '美国']],
-  'proxy/microsoft':    ['🪟 Microsoft', ['默认代理', '直接连接']],
-  'proxy/amazon':       ['📦 Amazon',    ['美国', '默认代理']],
-  'proxy/telegram':     ['✈️  Telegram',  ['香港', '狮城', '默认代理']],
-  'proxy/twitter':      ['🐦 Twitter',   ['香港', '美国', '默认代理']],
-  'proxy/netflix':      ['🎬 Netflix',   ['狮城', '香港', '默认代理']],
-  'proxy/streaming':    ['🎥 Streaming', ['狮城', '香港', '默认代理']],
-  'proxy/social':       ['💬 Social',    ['香港', '默认代理']],
-  'proxy/ai':           ['🤖 AI',        ['美国', '默认代理']],
-  'proxy/gaming':       ['🎮 Gaming',    ['香港', '日本', '默认代理']],
-  'proxy/dev':          ['💻 Dev',       ['默认代理', '直接连接']],
-  'proxy/finance':      ['💰 Finance',   ['香港', '默认代理']],
-  'proxy/news':         ['📰 News',      ['默认代理']],
-  'meta/block':         ['🚫 Meta拦截',  []],
-  'meta/cn':            ['🇨🇳 Meta直连', []],
-  'meta/foreign':       ['🌐 Meta外网',  ['默认代理']],
+  'block/ads':          ['🚫 广告拦截',   [],   null],
+  'block/ads-lite':     ['🚫 广告(轻)',   [],   null],
+  'block/tracking':     ['🕵 追踪拦截',   [],   null],
+  'direct/cn':          ['🇨🇳 直连',      [],   null],
+  'direct/cn-ips':      ['🇨🇳 直连IP',    [],   null],
+  'direct/cn-no-media': ['🇨🇳 直连(无媒体)', [], null],
+  'proxy/ai':           ['人工智能',  null,  'US'],
+  'proxy/google':       ['谷歌服务',  null,  'HK'],
+  'proxy/apple':        ['苹果服务',  null,  'HK'],
+  'proxy/microsoft':    ['微软服务',  ['Proxy', '香港策略', '台湾策略', 'DIRECT'],  'Proxy'],
+  'proxy/amazon':       ['亚马逊',    null,  'US'],
+  'proxy/telegram':     ['电报消息',  null,  'HK'],
+  'proxy/twitter':      ['推特/X',    null,  'US'],
+  'proxy/youtube':      ['油管视频',  ['香港均衡-散列', '台湾均衡-散列', '美国均衡-散列', '香港策略', '台湾策略', '美国策略', 'Proxy', 'DIRECT'],  'HK'],
+  'proxy/netflix':      ['奈飞视频',  ['美国均衡-散列', '狮城均衡-散列', '香港均衡-散列', '美国策略', '狮城策略', 'Proxy', 'DIRECT'],  'US'],
+  'proxy/streaming':    ['流媒体',    ['美国均衡-散列', '狮城均衡-散列', '香港均衡-散列', '美国策略', '狮城策略', '香港策略', 'Proxy', 'DIRECT'],  'US'],
+  'proxy/social':       ['社交平台',  null,  'HK'],
+  'proxy/gaming':       ['游戏平台',  ['香港策略', '台湾策略', '日本策略', 'Proxy', 'DIRECT'],  'HK'],
+  'proxy/dev':          ['开发工具',  ['Proxy', '香港策略', '狮城策略', 'DIRECT'],  'Proxy'],
+  'proxy/finance':      ['金融服务',  null,  'HK'],
+  'proxy/news':         ['新闻媒体',  ['美国策略', 'Proxy', 'DIRECT'],  'US'],
+  'meta/block':         ['🚫 Meta拦截',  [],  null],
+  'meta/cn':            ['🇨🇳 Meta直连', [],  null],
+  'meta/foreign':       ['🌐 Meta外网',  ['Proxy'],  null],
 }
 
 export const _REGIONS = [
-  { name: '香港', pattern: '港|🇭🇰|HK|Hong Kong|HKG' },
-  { name: '台湾', pattern: '台|台湾|🇹🇼|TW|TPE|TSA' },
-  { name: '狮城', pattern: '坡|新加坡|🇸🇬|SG|Sing|SIN|XSP' },
-  { name: '日本', pattern: '日本|日|🇯🇵|JP|Japan|NRT|HND|KIX' },
-  { name: '韩国', pattern: '韩|韩国|🇰🇷|KR|Korea|ICN' },
-  { name: '美国', pattern: '美|美国|🇺🇸|US|USA|LAX|SJC|JFK|ORD' },
-  { name: '欧盟', pattern: '英|法|德|荷|瑞|🇬🇧|🇫🇷|🇩🇪|🇳🇱|🇸🇪|CDG|FRA|AMS|LHR' },
+  { name: '香港', key: 'HK', pattern: '港|香港|🇭🇰|HK|HKG|Hong ?Kong' },
+  { name: '台湾', key: 'TW', pattern: '台|台湾|🇹🇼|TW|TWN|Taiwan|TPE|TSA|KHH' },
+  { name: '狮城', key: 'SG', pattern: '坡|狮城|新加坡|🇸🇬|SG|SGP|Singapore|SIN|XSP' },
+  { name: '日本', key: 'JP', pattern: '日|日本|🇯🇵|JP|JPN|Japan|NRT|HND|KIX|CTS|FUK|东京|大阪|泉日|埼玉|沪日|深日|川日' },
+  { name: '韩国', key: 'KR', pattern: '韩|韩国|🇰🇷|KR|KOR|Korea|南朝鲜|首尔' },
+  { name: '美国', key: 'US', pattern: '美|美国|🇺🇸|US|USA|United ?States|SJC|JFK|LAX|ORD|ATL|DFW|SFO|MIA|SEA|IAD|波特兰|达拉斯|俄勒冈|凤凰城|费利蒙|硅谷|拉斯维加斯|洛杉矶|圣何塞|圣克拉拉|西雅图|芝加哥' },
+  { name: '欧盟', key: 'EU', pattern: '奥|比|保|克罗地亚|塞|捷|丹|爱沙|芬|法|德|希|匈|爱|意|拉|立|卢|马|荷|波|葡|罗|西|瑞典|英|🇩🇪|🇫🇷|🇬🇧|🇳🇱|🇸🇪|CDG|FRA|AMS|LHR|MUC' },
 ]
 export const _FALLBACK_REGIONS = ['香港', '狮城', '日本', '美国']
+export const _JUNK_EXCLUDE = '群|邀请|返利|循环|官网|网站|网址|获取|订阅|流量|到期|机场|下次|版本|官址|备用|过期|已用|联系|客服|邮箱|工单|贩卖|通知|倒卖|防止|国内|地址|频道|无法|说明|使用|提示|访问|支持|教程|关注|更新|作者|加入|(?i)USE|USED|TOTAL|EXPIRE|EMAIL|Panel|Channel|Author|Traffic'
+export const _HIGH_MUL_EXCLUDE = 'X5|5x|X10|10x|DirectAccess|移动网络|禁止下载|禁止视频'
 export const _DIRECT_GROUPS = new Set(['direct/cn', 'direct/cn-ips', 'direct/cn-no-media', 'meta/cn'])
 export const _REJECT_GROUPS = new Set(['block/ads', 'block/ads-lite', 'block/tracking', 'meta/block'])
 
 // ── Icons ──────────────────────────────────────────────────────────────────────
 
-export const ICON_BASE = 'https://github.com/Koolson/Qure/raw/master/IconSet/Color'
+export const ICON_BASE = 'https://fastly.jsdelivr.net/gh/Koolson/Qure@master/IconSet/Color'
 export const REGION_ICONS = {
   '香港': 'Hong_Kong.png',
   '台湾': 'Taiwan.png',
@@ -96,17 +107,27 @@ export const REGION_ICONS = {
   '欧盟': 'European_Union.png',
 }
 export const SERVICE_ICONS = {
-  'proxy/google':    'Google.png',
-  'proxy/youtube':   'YouTube.png',
+  'proxy/ai':        'AI.png',
+  'proxy/google':    'Google_Search.png',
   'proxy/apple':     'Apple.png',
   'proxy/microsoft': 'Microsoft.png',
   'proxy/amazon':    'Amazon.png',
-  'proxy/telegram':  'Telegram.png',
-  'proxy/twitter':   'Twitter.png',
+  'proxy/telegram':  'Telegram_X.png',
+  'proxy/twitter':   'X.png',
+  'proxy/youtube':   'YouTube.png',
   'proxy/netflix':   'Netflix.png',
   'proxy/streaming': 'Streaming.png',
-  'proxy/ai':        'AI.png',
-  'proxy/gaming':    'Gaming.png',
+  'proxy/social':    'PBS.png',
+  'proxy/gaming':    'Game.png',
+  'proxy/dev':       'https://fastly.jsdelivr.net/gh/Orz-3/mini@master/Color/github.png',
+  'proxy/finance':   'Finance.png',
+  'proxy/news':      'Apple_News.png',
+}
+export const BLOCK_ICONS = {
+  'block/ads':      'Advertising.png',
+  'block/ads-lite': 'Advertising.png',
+  'block/tracking': 'Hijacking.png',
+  'meta/block':     'Reject.png',
 }
 
 // ── Profile defaults key groups ────────────────────────────────────────────────

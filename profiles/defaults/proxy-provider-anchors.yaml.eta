@@ -1,0 +1,12 @@
+# ── proxy provider anchor ─────────────────────────────────────────────────────
+# Edit here to update all proxy-providers at once (interval, health-check, filter).
+_h: &HealthUrl 'https://cp.cloudflare.com/generate_204'
+_pp: &ProxyProvider
+  type: http
+  interval: 86400
+  proxy: DIRECT
+  health-check:
+    enable: true
+    url: *HealthUrl
+    interval: 300
+  filter: '^(?!.*(<%= it.junkExclude %>)).*$'

@@ -1,0 +1,38 @@
+# ── Group base + type anchors ─────────────────────────────────────────────────
+# GroupBase carries url/lazy/include-all/exclude-filter — inherited by all auto types.
+# GroupSmart (vernesong fork) does NOT extend GroupBase; smart leaf groups must emit
+# include-all and exclude-filter explicitly.
+_g_base: &GroupBase
+  url: *HealthUrl
+  lazy: true
+  include-all: true
+  exclude-filter: *RegexGlobalExclude
+
+_g_ut: &GroupUrlTest
+  <<: *GroupBase
+  type: url-test
+  interval: 180
+  tolerance: 50
+
+_g_fb: &GroupFallback
+  <<: *GroupBase
+  type: fallback
+  interval: 300
+  tolerance: 100
+
+_g_lb_ch: &GroupLBHash
+  <<: *GroupBase
+  type: load-balance
+  strategy: consistent-hashing
+  interval: 300
+  tolerance: 100
+
+_g_lb_rr: &GroupLBRobin
+  <<: *GroupBase
+  type: load-balance
+  strategy: round-robin
+  interval: 300
+  tolerance: 100
+
+_g_sel: &GroupSelect
+  type: select

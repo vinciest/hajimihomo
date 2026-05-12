@@ -1,0 +1,34 @@
+# ── Regex anchors ─────────────────────────────────────────────────────────────
+_r_exclude: &RegexGlobalExclude '<%= it.regexExclude %>'
+_r_highmul: &RegexHighMul '<%= it.regexHighMul %>'
+<% if (it.regions.length > 0) { %>
+# ── Region filter anchors ─────────────────────────────────────────────────────
+<% for (const r of it.regions) { -%>
+_f_<%= r.key.toLowerCase() %>: &Filter<%= r.key %> '<%= r.filterValue %>'
+<% } -%>
+<% } -%>
+<% if (it.smart) { %>
+# ── Smart group anchor (vernesong/mihomo fork only) ───────────────────────────
+_g_smart: &GroupSmart {type: smart, interval: 180, lazy: true, uselightgbm: true, url: *HealthUrl}
+<% } -%>
+<% if (it.regions.length > 0) { %>
+# ── Service group anchors (region-filtered selects) ───────────────────────────
+# Each carries include-all+filter so service groups just need <<: *GroupSelectXX + optional icon.
+# proxies: own region leaves first, then other region strategies, then Proxy + DIRECT.
+<% for (const r of it.regions) { -%>
+_g_sel_<%= r.key.toLowerCase() %>: &GroupSelect<%= r.key %>
+  type: select
+  include-all: true
+  filter: *Filter<%= r.key %>
+  exclude-filter: *RegexGlobalExclude
+  proxies: [<%= r.proxies.join(', ') %>]
+<% } -%>
+
+_g_sel_proxy: &GroupSelectProxy
+  type: select
+  proxies: [Proxy, DIRECT, <%= it.allRegionStrategies.join(', ') %>]
+
+_g_sel_direct: &GroupSelectDirect
+  type: select
+  proxies: [DIRECT, Proxy, <%= it.allRegionStrategies.join(', ') %>]
+<% } -%>

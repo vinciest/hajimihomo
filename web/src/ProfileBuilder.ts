@@ -18,16 +18,18 @@ import profileTmpl       from '../../profiles/defaults/profile.yaml.eta'        
 import dnsText           from '../../profiles/defaults/dns.yaml'                  with { type: 'text' }
 import snifferText       from '../../profiles/defaults/sniffer.yaml'              with { type: 'text' }
 import tunText           from '../../profiles/defaults/tun.yaml'                  with { type: 'text' }
-import ruleProviderAnchors      from '../../profiles/defaults/rule-provider-anchors.yaml'     with { type: 'text' }
-import proxyProviderAnchors     from '../../profiles/defaults/proxy-provider-anchors.yaml'    with { type: 'text' }
-import proxyGroupAnchors        from '../../profiles/defaults/proxy-group-anchors.yaml'       with { type: 'text' }
-import proxyGroupAnchorsSmart   from '../../profiles/defaults/proxy-group-anchors-smart.yaml' with { type: 'text' }
+import ruleProviderAnchors         from '../../profiles/defaults/rule-provider-anchors.yaml'         with { type: 'text' }
+import proxyGroupStrategyAnchors   from '../../profiles/defaults/proxy-group-strategy-anchors.yaml'   with { type: 'text' }
+import proxyProviderAnchorsTmpl    from '../../profiles/defaults/proxy-provider-anchors.yaml.eta'      with { type: 'text' }
+import proxyGroupRegionAnchorsTmpl from '../../profiles/defaults/proxy-group-region-anchors.yaml.eta'  with { type: 'text' }
 import {
   CDN_BASE, RELEASES_BASE, RULESETS_URL,
   SPLIT_ORDER, SPLIT_BEHAVIOR,
   GEODATA_SOURCES,
   SERVICE_MAP, _REGIONS, _FALLBACK_REGIONS, _DIRECT_GROUPS, _REJECT_GROUPS,
-  ICON_BASE, REGION_ICONS, SERVICE_ICONS,
+  _JUNK_EXCLUDE, _HIGH_MUL_EXCLUDE,
+  ICON_BASE, ORZ3_BASE, REGION_ICONS, SERVICE_ICONS, BLOCK_ICONS,
+  RULE_INTERVAL,
 } from './constants'
 
 const _eta = new Eta({ autoEscape: false, autoTrim: false })
@@ -94,7 +96,7 @@ function _provider(name, filename, behavior) {
     behavior,
     url:      `${CDN_BASE}@ruleset/mihomo/${filename}`,
     path:     `./ruleset/${filename}`,
-    interval: 86400,
+    interval: RULE_INTERVAL,
     format:   'yaml',
   }
 }
@@ -196,94 +198,209 @@ export function buildMihomoGroups(subUrls: string[], groupIds: string[], catalog
 function _slug2(gid) { return gid.replace(/\//g, '-') }
 function _autoType(target) { return target === 'mihomo-smart' ? 'smart' : 'url-test' }
 function _regionFilter(pattern, exclude) {
-  const neg = exclude ? `(?!.*(?:${exclude}))` : ''
+  const parts = [_HIGH_MUL_EXCLUDE, exclude].filter(Boolean)
+  const neg = parts.length ? `(?!.*(?:${parts.join('|')}))` : ''
   return `^(?=.*(?i)(${pattern}))${neg}.*$`
 }
 
 /** Render an eta template string and trim trailing whitespace. */
 function _tmpl(template, data) { return _eta.renderString(template, data).trimEnd() }
 
+/** Returns the full icon URL for a service group id, or null. */
+function _serviceIconUrl(gid) {
+  const v = SERVICE_ICONS[gid]
+  if (!v) return null
+  return v.startsWith('http') ? v : `${ICON_BASE}/${v}`
+}
+
+/** Filter regex WITHOUT user regionExcludes — for anchor block definitions. */
+function _regionFilterValue(pattern) {
+  return `^(?=.*(?i)(${pattern}))(?!.*(?:${_HIGH_MUL_EXCLUDE})).*$`
+}
+
+/** Build eta template context for proxy-group-anchors.yaml.eta. */
+function _proxyGroupAnchorCtx(topology, target) {
+  const leafSuffixes = topology === 'advanced'
+    ? ['高速', '可用', '均衡-散列']
+    : ['高速', '可用']
+  return {
+    regexExclude: _JUNK_EXCLUDE,
+    regexHighMul: _HIGH_MUL_EXCLUDE,
+    smart: target === 'mihomo-smart',
+    regions: topology === 'global' ? [] : _REGIONS.map(r => ({
+      name: r.name,
+      key: r.key,
+      filterValue: _regionFilterValue(r.pattern),
+      proxies: [
+        ...leafSuffixes.map(s => `${r.name}${s}`),
+        ..._REGIONS.filter(rr => rr.key !== r.key).map(rr => `${rr.name}策略`),
+        'Proxy', 'DIRECT',
+      ],
+    })),
+    allRegionStrategies: _REGIONS.map(r => `${r.name}策略`),
+  }
+}
+
 function _buildProxyGroups(groupIds, { topology, target, features, regionExcludes }) {
   const groups = []
   const autoType = _autoType(target)
-  const autoProps = autoType === 'url-test'
-    ? { url: 'https://www.google.com/generate_204', interval: 200 }
-    : { uselightgbm: true }
-  const regionNames = _REGIONS.map(r => r.name)
+  const strategyNames = _REGIONS.map(r => `${r.name}策略`)
   const rejectGroups  = groupIds.filter(g => _REJECT_GROUPS.has(g))
   const serviceGroups = groupIds.filter(g => !_DIRECT_GROUPS.has(g) && !_REJECT_GROUPS.has(g))
 
-  // ── infrastructure ──────────────────────────────────────────────────────────
+  // Valid leaf/strategy names for the current topology (used to filter preferred lists)
+  const leafSuffixes = topology === 'advanced'
+    ? ['高速', '可用', '均衡-散列', '均衡-轮询'] : ['高速', '可用']
+  const allLeafNames = _REGIONS.flatMap(r => leafSuffixes.map(s => `${r.name}${s}`))
+  const valid = new Set([...strategyNames, ...allLeafNames, 'Proxy', 'DIRECT'])
+
+  // Whether to use filter anchor refs (only when no user regionExcludes)
+  const useFilterAnchors = !regionExcludes
+
+  // ── 通知公告 ──────────────────────────────────────────────────────────────
+  groups.push({
+    name: '通知公告',
+    type: 'select',
+    'include-all': true,
+    filter: '*RegexGlobalExclude',
+    icon: `https://fastly.jsdelivr.net/gh/hfg-gmuend/openmoji@15.1.0/color/svg/1F4E2.svg`,
+  })
+
+  // ── Tier 1: Proxy ─────────────────────────────────────────────────────────
   if (topology === 'global') {
-    groups.push({ name: '默认代理', type: 'select', proxies: ['全部', '直接连接'], icon: `${ICON_BASE}/Proxy.png` })
+    groups.push({
+      name: 'Proxy', type: 'select',
+      proxies: ['全部', 'DIRECT'],
+      icon: `${ORZ3_BASE}/Vpn.png`,
+    })
   } else {
     groups.push({
-      name: '默认代理', type: 'select',
-      proxies: ['故障转移', ...regionNames, '全部', '直接连接'],
-      icon: `${ICON_BASE}/Proxy.png`,
-    })
-    const fbCandidates = _FALLBACK_REGIONS.filter(r => regionNames.includes(r))
-    groups.push({
-      name: '故障转移', type: 'fallback',
-      url: 'https://www.google.com/generate_204', interval: 200, lazy: true,
-      proxies: fbCandidates,
-      icon: `${ICON_BASE}/Available.png`,
+      name: 'Proxy', type: 'select',
+      proxies: strategyNames,
+      'include-all': true,
+      'exclude-filter': '*RegexGlobalExclude',
+      icon: `${ORZ3_BASE}/Vpn.png`,
     })
   }
-  groups.push({ name: '直接连接', type: 'select', proxies: ['DIRECT', '默认代理'], icon: `${ICON_BASE}/Direct.png` })
 
-  // ── block groups (named select — never hardcode REJECT in rules) ────────────
+  // ── Cross-region shortcuts (Tier 1.5, optional) ───────────────────────────
+  if (topology !== 'global') {
+    groups.push({
+      name: 'Fast',
+      type: 'select',
+      proxies: _REGIONS.map(r => `${r.name}高速`),
+      icon: `${ORZ3_BASE}/Urltest.png`,
+    })
+    groups.push({
+      name: 'Available',
+      type: 'select',
+      proxies: _REGIONS.map(r => `${r.name}可用`),
+      icon: `${ORZ3_BASE}/Available.png`,
+    })
+  }
+
+  // ── Block groups (Tier 2) ──────────────────────────────────────────────────
   for (const gid of rejectGroups) {
     const name = (SERVICE_MAP[gid] || [`🚫 ${gid.split('/')[1]}`])[0]
-    groups.push({ name, type: 'select', proxies: ['REJECT', 'DIRECT', '默认代理'] })
+    const g: any = { name, type: 'select', proxies: ['REJECT', 'DIRECT'] }
+    if (BLOCK_ICONS[gid]) g.icon = `${ICON_BASE}/${BLOCK_ICONS[gid]}`
+    groups.push(g)
   }
   if (features?.quic_block)
-    groups.push({ name: '🛡️ 协议拦截', type: 'select', proxies: ['REJECT', 'DIRECT', '默认代理'] })
+    groups.push({ name: '🛡️ 协议拦截', type: 'select', proxies: ['REJECT', 'DIRECT'], icon: `${ICON_BASE}/Reject.png` })
 
-  // ── region groups ───────────────────────────────────────────────────────────
-  if (topology !== 'global') {
-    for (const r of _REGIONS) {
-      const filter = _regionFilter(r.pattern, regionExcludes)
-      if (topology === 'advanced' && features?.load_balance) {
-        groups.push({
-          name: `${r.name}-LBH`, type: 'load-balance', strategy: 'consistent-hashing',
-          url: 'https://www.google.com/generate_204', interval: 200, lazy: true, hidden: true,
-          'include-all': true, filter,
-        })
-        groups.push({
-          name: `${r.name}-LBR`, type: 'load-balance', strategy: 'round-robin',
-          url: 'https://www.google.com/generate_204', interval: 200, lazy: true, hidden: true,
-          'include-all': true, filter,
-        })
-      }
-      const g = { name: r.name, type: autoType, ...autoProps, lazy: true, 'include-all': true, filter }
-      if (REGION_ICONS[r.name]) g.icon = `${ICON_BASE}/${REGION_ICONS[r.name]}`
-      groups.push(g)
-    }
-  }
-  // global auto (hidden)
-  groups.push({ name: '全部', type: autoType, ...autoProps, lazy: true, hidden: true, 'include-all': true })
-
-  // ── per-service groups ──────────────────────────────────────────────────────
+  // ── Service groups (Tier 2) ────────────────────────────────────────────────
   const effectiveMap = {}
   for (const gid of serviceGroups) {
     const entry = SERVICE_MAP[gid]
     const displayName = entry ? entry[0] : `🌐 ${gid.split('/')[1]}`
-    const preferred   = entry ? entry[1] : []
-    let candidates
-    if (topology !== 'global') {
-      candidates = preferred.filter(p => regionNames.includes(p) || p === '默认代理' || p === '直接连接')
-      if (!candidates.length) candidates = ['默认代理', '直接连接']
-      if (!candidates.includes('默认代理')) candidates.push('默认代理')
+    const preferred   = entry ? entry[1] : []  // null = anchor default; array = override
+    const anchorKey   = entry ? entry[2] : null
+
+    let g: any
+    const iconUrl = _serviceIconUrl(gid)
+
+    if (anchorKey && topology !== 'global') {
+      // P12: emit <<: *GroupSelectXX anchor reference
+      g = { name: displayName, _anchorRef: `GroupSelect${anchorKey}` }
+      if (preferred !== null && preferred.length > 0) {
+        // Explicit proxies override — filter by topology-valid names
+        const proxies = preferred.filter(p => valid.has(p))
+        if (!proxies.includes('Proxy')) proxies.push('Proxy')
+        if (!proxies.includes('DIRECT')) proxies.push('DIRECT')
+        g.proxies = proxies
+      }
+      // else: anchor default proxies, don't emit proxies
     } else {
-      candidates = ['默认代理', '直接连接']
+      // No anchor: explicit type:select + proxies
+      g = { name: displayName, type: 'select' }
+      if (topology !== 'global') {
+        const arr = (preferred ?? [])
+        const proxies = arr.filter(p => valid.has(p))
+        if (!proxies.includes('Proxy')) proxies.push('Proxy')
+        if (!proxies.includes('DIRECT')) proxies.push('DIRECT')
+        g.proxies = proxies
+      } else {
+        g.proxies = ['Proxy', 'DIRECT']
+      }
     }
-    effectiveMap[gid] = [displayName, candidates]
-    const g = { name: displayName, type: 'select', proxies: candidates }
-    if (SERVICE_ICONS[gid]) g.icon = `${ICON_BASE}/${SERVICE_ICONS[gid]}`
+
+    if (iconUrl) g.icon = iconUrl
+    effectiveMap[gid] = [displayName, g.proxies?.[0] ?? displayName]
     groups.push(g)
   }
-  groups.push({ name: '漏网之鱼', type: 'select', proxies: ['默认代理', '直接连接'], icon: `${ICON_BASE}/Proxy.png` })
+
+  // ── Tier 3 + Tier 4: Regional groups ──────────────────────────────────────
+  if (topology !== 'global') {
+    // Tier 3: strategy groups
+    for (const r of _REGIONS) {
+      const filter = useFilterAnchors ? `*Filter${r.key}` : _regionFilter(r.pattern, regionExcludes)
+      const leafNames = [`${r.name}高速`, `${r.name}可用`]
+      if (topology === 'advanced') leafNames.push(`${r.name}均衡-散列`, `${r.name}均衡-轮询`)
+
+      const strat: any = {
+        name: `${r.name}策略`,
+        _anchorRef: 'GroupSelect',
+        proxies: leafNames,
+        'include-all': true,
+        filter,
+        'exclude-filter': '*RegexGlobalExclude',
+      }
+      if (REGION_ICONS[r.name]) strat.icon = `${ICON_BASE}/${REGION_ICONS[r.name]}`
+      groups.push(strat)
+    }
+
+    // Tier 4: leaf groups
+    const anchorForAutoType = autoType === 'smart' ? 'GroupSmart' : 'GroupUrlTest'
+    // Smart leaf groups need explicit include-all/exclude-filter (GroupSmart doesn't extend GroupBase)
+    const smartExtra = autoType === 'smart'
+      ? { 'include-all': true, 'exclude-filter': '*RegexGlobalExclude' }
+      : {}
+
+    for (const r of _REGIONS) {
+      const filter = useFilterAnchors ? `*Filter${r.key}` : _regionFilter(r.pattern, regionExcludes)
+
+      groups.push({ name: `${r.name}高速`, _anchorRef: anchorForAutoType, filter, hidden: true, ...smartExtra })
+      groups.push({ name: `${r.name}可用`,  _anchorRef: 'GroupFallback',  filter, hidden: true })
+      if (topology === 'advanced') {
+        groups.push({ name: `${r.name}均衡-散列`, _anchorRef: 'GroupLBHash',  filter, hidden: true })
+        groups.push({ name: `${r.name}均衡-轮询`, _anchorRef: 'GroupLBRobin', filter, hidden: true })
+      }
+    }
+  }
+
+  // ── 全部 (hidden, all-node collector) ─────────────────────────────────────
+  {
+    const anchorForAutoType = autoType === 'smart' ? 'GroupSmart' : 'GroupUrlTest'
+    const smartExtra = autoType === 'smart'
+      ? { 'include-all': true, 'exclude-filter': '*RegexGlobalExclude' }
+      : {}
+    groups.push({ name: '全部', _anchorRef: anchorForAutoType, hidden: true, ...smartExtra })
+  }
+
+  // ── 🐟 漏网之鱼 (catch-all) ────────────────────────────────────────────────
+  groups.push({ name: '🐟 漏网之鱼', type: 'select', proxies: ['Proxy', 'DIRECT'], icon: `${ICON_BASE}/Final.png` })
+
   return { groups, effectiveMap }
 }
 
@@ -308,7 +425,7 @@ function _buildRuleProvidersForFormat(groupIds, catalog, format = 'yaml-split') 
         type: 'http', behavior: 'classical',
         url: `${RULESET_CDN}/${s}.yaml`,
         path: `./ruleset/${s}.yaml`,
-        interval: 86400, format: 'yaml',
+        interval: RULE_INTERVAL, format: 'yaml',
       }
     } else if (format === 'binary') {
       if (gid !== 'direct/cn-ips') {
@@ -316,7 +433,7 @@ function _buildRuleProvidersForFormat(groupIds, catalog, format = 'yaml-split') 
           type: 'http', behavior: 'domain',
           url: `${RELEASES_BASE}/${s}.domain.mrs`,
           path: `./ruleset/${s}.domain.mrs`,
-          interval: 86400, format: 'mrs',
+          interval: RULE_INTERVAL, format: 'mrs',
         }
       }
       if (_needsIpProvider2(gid, catalog)) {
@@ -324,7 +441,7 @@ function _buildRuleProvidersForFormat(groupIds, catalog, format = 'yaml-split') 
           type: 'http', behavior: 'ipcidr',
           url: `${RELEASES_BASE}/${s}.ip.mrs`,
           path: `./ruleset/${s}.ip.mrs`,
-          interval: 86400, format: 'mrs',
+          interval: RULE_INTERVAL, format: 'mrs',
         }
       }
     } else {
@@ -334,7 +451,7 @@ function _buildRuleProvidersForFormat(groupIds, catalog, format = 'yaml-split') 
           type: 'http', behavior: 'domain',
           url: `${RULESET_CDN}/${s}.domain.yaml`,
           path: `./ruleset/${s}.domain.yaml`,
-          interval: 86400, format: 'yaml',
+          interval: RULE_INTERVAL, format: 'yaml',
         }
       }
       if (_needsIpProvider2(gid, catalog)) {
@@ -342,7 +459,7 @@ function _buildRuleProvidersForFormat(groupIds, catalog, format = 'yaml-split') 
           type: 'http', behavior: 'ipcidr',
           url: `${RULESET_CDN}/${s}.ip.yaml`,
           path: `./ruleset/${s}.ip.yaml`,
-          interval: 86400, format: 'yaml',
+          interval: RULE_INTERVAL, format: 'yaml',
         }
       }
     }
@@ -392,21 +509,24 @@ function _buildRules2(groupIds, catalog, effectiveMap, features, format = 'yaml-
         rules.push(`RULE-SET,${_slug2(gid)},DIRECT,no-resolve`)
   }
 
-  rules.push('MATCH,漏网之鱼')
+  rules.push('MATCH,🐟 漏网之鱼')
   return rules
 }
 
 function _renderProxyProviders(subUrls) {
+  const anchorText = _tmpl(proxyProviderAnchorsTmpl, {
+    junkExclude: _JUNK_EXCLUDE,
+  })
   if (!subUrls.length) {
     return (
-      proxyProviderAnchors.trimEnd() + '\n\n' +
+      anchorText.trimEnd() + '\n\n' +
       '# ── proxy providers ──────────────────────────────────────────────────────────\n' +
       "# proxy-providers:\n#   airport-1:\n#     <<: *ProxyProvider\n#     url: 'https://your-airport.com/subscribe?token=xxx'\n" +
       'proxy-providers: {}'
     )
   }
   const lines = [
-    proxyProviderAnchors.trimEnd(),
+    anchorText.trimEnd(),
     '',
     '# ── proxy providers ──────────────────────────────────────────────────────────',
     'proxy-providers:',
@@ -428,6 +548,7 @@ function _section(title, subtitle) {
 
 /** Maps a proxy group to its YAML anchor name. */
 function _groupAnchorName(g) {
+  if (g._anchorRef) return g._anchorRef  // explicit anchor (P11/P12 groups)
   if (g.type === 'url-test')    return 'GroupUrlTest'
   if (g.type === 'fallback')    return 'GroupFallback'
   if (g.type === 'smart')       return 'GroupSmart'
@@ -436,19 +557,30 @@ function _groupAnchorName(g) {
   return 'GroupSelect'
 }
 
-// Fields each anchor covers — omit from per-group output
-const _GROUP_ANCHOR_COVERS = {
-  GroupSelect:  new Set(['type']),
-  GroupUrlTest: new Set(['type', 'url', 'interval', 'tolerance', 'lazy']),
-  GroupFallback:new Set(['type', 'url', 'interval', 'lazy']),
-  GroupLBHash:  new Set(['type', 'strategy', 'url', 'interval', 'lazy']),
-  GroupLBRobin: new Set(['type', 'strategy', 'url', 'interval', 'lazy']),
-  GroupSmart:   new Set(['type', 'uselightgbm']),
+// Fields each anchor covers — omit from per-group output.
+// GroupBase (carried by GroupUrlTest/Fallback/LBHash/LBRobin via <<:) provides:
+//   url, lazy, include-all, exclude-filter
+// GroupSmart does NOT extend GroupBase — smart leaf groups must emit include-all/exclude-filter explicitly.
+const _GROUP_ANCHOR_COVERS: Record<string, Set<string>> = {
+  GroupSelect:        new Set(['type']),
+  GroupUrlTest:       new Set(['type', 'url', 'interval', 'tolerance', 'lazy', 'include-all', 'exclude-filter']),
+  GroupFallback:      new Set(['type', 'url', 'interval', 'tolerance', 'lazy', 'include-all', 'exclude-filter']),
+  GroupLBHash:        new Set(['type', 'strategy', 'url', 'interval', 'tolerance', 'lazy', 'include-all', 'exclude-filter']),
+  GroupLBRobin:       new Set(['type', 'strategy', 'url', 'interval', 'tolerance', 'lazy', 'include-all', 'exclude-filter']),
+  GroupSmart:         new Set(['type', 'uselightgbm', 'url', 'interval', 'lazy']),
+  GroupSelectProxy:   new Set(['type']),
+  GroupSelectDirect:  new Set(['type']),
+}
+// GroupSelectXX — covers type, include-all, filter, exclude-filter
+// proxies is intentionally NOT covered; emit only if non-null in group object
+for (const r of _REGIONS) {
+  _GROUP_ANCHOR_COVERS[`GroupSelect${r.key}`] = new Set(['type', 'include-all', 'filter', 'exclude-filter'])
 }
 
 function _yamlScalar(v) {
   if (typeof v === 'boolean' || typeof v === 'number') return String(v)
   const s = String(v)
+  if (s.startsWith('*')) return s  // YAML anchor reference — never quote
   // single-quote strings that contain YAML-special characters
   if (/[:#\[\]{}&*!,|>'"%@`]/.test(s) || /^\s|\s$/.test(s)) {
     return `'${s.replace(/'/g, "''")}'`
@@ -457,20 +589,18 @@ function _yamlScalar(v) {
 }
 
 /** Renders the proxy-groups section with YAML anchors for each group type. */
-function _renderProxyGroups(groups, target) {
-  const smart = target === 'mihomo-smart'
-  const anchorBlock = smart
-    ? proxyGroupAnchors.trimEnd() + '\n\n' + proxyGroupAnchorsSmart.trimEnd()
-    : proxyGroupAnchors.trimEnd()
+function _renderProxyGroups(groups, topology, target) {
+  const ctx = _proxyGroupAnchorCtx(topology, target)
+  const anchorBlock = _tmpl(proxyGroupRegionAnchorsTmpl, ctx)
 
-  const lines = [anchorBlock, '', 'proxy-groups:']
+  const lines = [anchorBlock.trimEnd(), '', proxyGroupStrategyAnchors.trimEnd(), '', 'proxy-groups:']
   for (const g of groups) {
     const anchor = _groupAnchorName(g)
     const skip   = _GROUP_ANCHOR_COVERS[anchor] || new Set()
     lines.push(`  - name: ${_yamlScalar(g.name)}`)
     lines.push(`    <<: *${anchor}`)
     for (const [k, v] of Object.entries(g)) {
-      if (k === 'name' || skip.has(k)) continue
+      if (k === 'name' || k === '_anchorRef' || skip.has(k)) continue
       if (Array.isArray(v)) {
         lines.push(`    ${k}:`)
         for (const item of v) lines.push(`      - ${_yamlScalar(item)}`)
@@ -493,8 +623,9 @@ function _anchorFor(prov) {
 
 /** Renders the rule-providers section, emitting YAML anchors. */
 function _renderRuleProviders(ruleProviders) {
+  const anchorText = ruleProviderAnchors.trimEnd()
   const lines = [
-    ruleProviderAnchors.trimEnd(),
+    anchorText.trimEnd(),
     '',
     '# ── rule providers ─────────────────────────────────────────────────────────────',
     'rule-providers:',
@@ -566,7 +697,7 @@ export function buildFullProfile(subUrls: string[], groupIds: string[], catalog:
     _section('§2  PROXIES & RULES', 'proxy providers · proxy groups · rule providers · rules'),
     _renderProxyProviders(subUrls),
     `# ── proxy groups ─────────────────────────────────────────────────────────────\n` +
-      _renderProxyGroups(groups, target),
+      _renderProxyGroups(groups, topology, target),
     _renderRuleProviders(ruleProviders),
     `# ── rules ────────────────────────────────────────────────────────────────────\n` +
       s.rules,
@@ -611,7 +742,7 @@ export function buildProfileFromCustomGroups(subUrls: string[], customGroups: Cu
   // Override service groups with custom group names and actions
   const serviceGroups = customGroups.map(cg => {
     const action = cg.action || 'PROXY'
-    return { name: cg.name, type: 'select', proxies: [action === 'PROXY' ? '默认代理' : action, '直接连接'] }
+    return { name: cg.name, type: 'select', proxies: [action === 'PROXY' ? 'Proxy' : action, 'DIRECT'] }
   })
 
   // Effective map for rule routing: group ID → custom group name
@@ -643,7 +774,7 @@ export function buildProfileFromCustomGroups(subUrls: string[], customGroups: Cu
     _section('§2  PROXIES & RULES', 'proxy providers · proxy groups · rule providers · rules'),
     _renderProxyProviders(subUrls),
     `# ── proxy groups ─────────────────────────────────────────────────────────────\n` +
-      _renderProxyGroups(allGroups, target),
+      _renderProxyGroups(allGroups, topology, target),
     _renderRuleProviders(ruleProviders),
     `# ── rules ────────────────────────────────────────────────────────────────────\n` +
       s.rules,
