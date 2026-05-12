@@ -1,0 +1,398 @@
+# proxy-group-best-practice.yaml
+# Reference config demonstrating the 4-tier proxy group hierarchy for mihomo.
+# Not a runnable config — proxy-providers and rules sections are stubs.
+# See docs/proxy-provider-patterns.md for provider setup.
+
+# ── Anchor definitions ──────────────────────────────────────────────────────
+# Define all templates here so every group definition is a one-liner.
+# These live in a top-level `define:` scalar block in real configs; shown here
+# as a bare mapping so the anchors are valid YAML.
+
+proxy-group-anchors:
+  # § Global filter regexes ───────────────────────────────────────────────────
+  # Applied as exclude-filter on every leaf group to strip junk/announcement nodes.
+  RegexGlobalExclude: &RegexGlobalExclude "^(?=.*(群|邀请|返利|循环|官网|网站|网址|获取|订阅|流量|到期|机场|下次|版本|官址|备用|过期|已用|联系|客服|邮箱|工单|贩卖|通知|倒卖|防止|国内|地址|频道|无法|说明|使用|提示|访问|支持|教程|关注|更新|作者|加入|(?i)USE|USED|TOTAL|EXPIRE|EMAIL|Panel|Channel|Author|Traffic)).*$"
+  # High-multiplier nodes (X5/X10) — excluded from auto-select leaves to prevent expensive nodes winning latency tests.
+  RegexHighMul: &RegexHighMul "X5|5x|X10|10x|DirectAccess|移动网络|禁止下载|禁止视频"
+
+  # § Region filter anchors ───────────────────────────────────────────────────
+  # Positive lookahead selects region; negative lookahead strips high-mul nodes.
+  FilterHK: &FilterHK '^(?=.*(?i)(🇭🇰|\b港\b|香港|HK|HKG|Hong ?Kong))(?!.*(X5|5x|X10|10x|DirectAccess|移动网络|禁止下载|禁止视频)).*$'
+  FilterTW: &FilterTW '^(?=.*(?i)(🇹🇼|\b台\b|台湾|TW|TWN|Taiwan|TPE|TSA|KHH))(?!.*(X5|5x|X10|10x|DirectAccess|移动网络|禁止下载|禁止视频)).*$'
+  FilterUS: &FilterUS '^(?=.*(?i)(🇺🇸|\b美\b|美国|US|USA|United ?States|SJC|JFK|LAX|ORD|ATL|DFW|SFO|MIA|SEA|IAD|波特兰|达拉斯|俄勒冈|凤凰城|费利蒙|硅谷|拉斯维加斯|洛杉矶|圣何塞|圣克拉拉|西雅图|芝加哥))(?!.*(X5|5x|X10|10x|DirectAccess|移动网络|禁止下载|禁止视频)).*$'
+  FilterJP: &FilterJP '^(?=.*(?i)(🇯🇵|\b日\b|日本|JP|JPN|Japan|NRT|HND|KIX|CTS|FUK|东京|大阪|泉日|埼玉|沪日|深日|川日))(?!.*(X5|5x|X10|10x|DirectAccess|移动网络|禁止下载|禁止视频)).*$'
+  FilterKR: &FilterKR '^(?=.*(?i)(🇰🇷|\b韩\b|韩国|KR|KOR|Korea|南朝鲜|首尔))(?!.*(X5|5x|X10|10x|DirectAccess|移动网络|禁止下载|禁止视频)).*$'
+  FilterSG: &FilterSG '^(?=.*(?i)(🇸🇬|\b坡\b|狮城|SG|SGP|Singapore|SIN|XSP|新加坡))(?!.*(X5|5x|X10|10x|DirectAccess|移动网络|禁止下载|禁止视频)).*$'
+  FilterEU: &FilterEU '^(?=.*(?i)(奥|比|保|克罗地亚|塞|捷|丹|爱沙|芬|法|德|希|匈|爱|意|拉|立|卢|马|荷|波|葡|罗|西|瑞典|英|🇩🇪|🇫🇷|🇬🇧|🇳🇱|🇸🇪|CDG|FRA|AMS|LHR|MUC))(?!.*(X5|5x|X10|10x|DirectAccess|移动网络|禁止下载|禁止视频)).*$'
+
+  # § Group type anchors ──────────────────────────────────────────────────────
+  GroupBase: &GroupBase
+    url: "https://www.gstatic.com/generate_204"
+    lazy: true
+    include-all: true
+    exclude-filter: *RegexGlobalExclude
+  GroupUT: &GroupUT
+    <<: *GroupBase
+    type: "url-test"
+    interval: 180
+    tolerance: 50
+  GroupFB: &GroupFB
+    <<: *GroupBase
+    type: "fallback"
+    interval: 300
+    tolerance: 100
+  GroupCH: &GroupCH
+    <<: *GroupBase
+    type: "load-balance"
+    strategy: "consistent-hashing"
+    interval: 300
+    tolerance: 100
+  GroupRR: &GroupRR
+    <<: *GroupBase
+    type: "load-balance"
+    strategy: "round-robin"
+    interval: 300
+    tolerance: 100
+
+  GroupSelectDirect: &GroupSelectDirect
+    type: select
+    proxies: [DIRECT, Proxy, 香港策略, 台湾策略, 狮城策略, 美国策略, 日本策略, 韩国策略, 欧盟策略]
+  GroupSelectProxy: &GroupSelectProxy
+    type: select
+    proxies: [Proxy, DIRECT, 香港策略, 台湾策略, 狮城策略, 美国策略, 日本策略, 韩国策略, 欧盟策略]
+  GroupSelectHK: &GroupSelectHK
+    type: select
+    proxies: [香港策略, Proxy, DIRECT, 台湾策略, 狮城策略, 美国策略, 日本策略, 韩国策略, 欧盟策略]
+  GroupSelectTW: &GroupSelectTW
+    type: select
+    proxies: [台湾策略, Proxy, DIRECT, 香港策略, 狮城策略, 美国策略, 日本策略, 韩国策略, 欧盟策略]
+  GroupSelectSG: &GroupSelectSG
+    type: select
+    proxies: [狮城策略, Proxy, DIRECT, 香港策略, 台湾策略, 美国策略, 日本策略, 韩国策略, 欧盟策略]
+  GroupSelectUS: &GroupSelectUS
+    type: select
+    proxies: [美国策略, Proxy, DIRECT, 香港策略, 台湾策略, 狮城策略, 日本策略, 韩国策略, 欧盟策略]
+
+  # smart: ML-based selection with per-tier weighting (vernesong fork only)
+  BaseSmart: &BaseSmart {type: smart,        interval: 200, lazy: true, uselightgbm: true, url: 'https://www.google.com/generate_204'}
+
+# ── Proxy groups ─────────────────────────────────────────────────────────────
+# Four-tier hierarchy:
+#   Tier 1  Master Select       User-facing; lists sub-groups as choices
+#   Tier 2  Feature Select      Per-service; picks a regional line
+#   Tier 3  Regional Strategy   Per-region select; chooses between Auto/LB sub-groups
+#   Tier 4  Leaf groups         url-test / load-balance / smart  (hidden: true)
+#
+# Rules only reference Tier 2 groups (feature or block groups), never individual
+# proxy names. Truly unconditional direct traffic (CN, private IPs) uses DIRECT
+# builtin in rules directly — no wrapper group needed.
+
+proxy-groups:
+
+  - name: "通知公告"
+    type: select
+    include-all: true
+    filter: *RegexGlobalExclude
+    icon: "https://fastly.jsdelivr.net/gh/hfg-gmuend/openmoji@15.1.0/color/svg/1F4E2.svg"
+
+  # ── Tier 1: Master select ─────────────────────────────────────────────────
+  # Entry point for all traffic. User sets this once; sub-groups do the work.
+  - name: Proxy
+    type: select
+    proxies: [香港策略, 台湾策略, 狮城策略, 美国策略, 日本策略, 韩国策略, 欧盟策略]
+    include-all: true
+    exclude-filter: *RegexGlobalExclude
+    icon: "https://fastly.jsdelivr.net/gh/Orz-3/mini@master/Color/Vpn.png"
+
+  # Optional convenience selects: jump straight to a leaf tier across all regions.
+  # Useful for dashboards; not part of the core 4-tier hierarchy.
+  - name: Fast
+    type: select
+    proxies: [香港高速, 台湾高速, 美国高速, 日本高速, 韩国高速, 狮城高速, 欧盟高速]
+    icon: "https://fastly.jsdelivr.net/gh/Orz-3/mini@master/Color/Urltest.png"
+
+  - name: Available
+    type: select
+    proxies: [香港可用, 台湾可用, 美国可用, 日本可用, 韩国可用, 狮城可用, 欧盟可用]
+    icon: "https://fastly.jsdelivr.net/gh/Orz-3/mini@master/Color/Available.png"
+
+  # Balance (commented out): LB-scatter across regions is rarely useful as a top-level
+  # select — most traffic benefits more from per-region strategy groups (Tier 3).
+  # - name: Balance
+  #   type: select
+  #   proxies: [香港均衡-散列, 台湾均衡-散列, 美国均衡-散列, 日本均衡-散列, 韩国均衡-散列, 狮城均衡-散列]
+  #   icon: "https://fastly.jsdelivr.net/gh/Orz-3/mini@master/Color/Roundrobin.png"
+
+  # ── Tier 2: Feature groups ────────────────────────────────────────────────
+  # Per-service selectors. Rules point here. First entry = default.
+
+  # AI services — US nodes first (broadest AI access)
+  - name: 人工智能
+    <<: *GroupSelectUS
+    proxies: [美国策略, 台湾策略, 香港策略, Proxy, DIRECT]
+    icon: "https://fastly.jsdelivr.net/gh/Koolson/Qure@master/IconSet/Color/AI.png"
+
+  # Google services — low-latency HK/TW preferred
+  - name: 谷歌服务
+    <<: *GroupSelectHK
+    proxies: [香港策略, 台湾策略, 狮城策略, Proxy, DIRECT]
+    icon: "https://fastly.jsdelivr.net/gh/Koolson/Qure@master/IconSet/Color/Google_Search.png"
+
+  # Apple services — HK/TW preferred; CN Apple traffic should use DIRECT in rules
+  - name: 苹果服务
+    <<: *GroupSelectHK
+    proxies: [香港策略, 台湾策略, Proxy, DIRECT]
+    icon: "https://fastly.jsdelivr.net/gh/Koolson/Qure@master/IconSet/Color/Apple.png"
+
+  # Microsoft / GitHub / Office / Azure
+  - name: 微软服务
+    <<: *GroupSelectProxy
+    proxies: [Proxy, 香港策略, 台湾策略, DIRECT]
+    icon: "https://fastly.jsdelivr.net/gh/Koolson/Qure@master/IconSet/Color/Microsoft.png"
+
+  # Telegram — HK/SG for low latency
+  - name: 电报消息
+    <<: *GroupSelectHK
+    proxies: [香港策略, 狮城策略, 台湾策略, Proxy, DIRECT]
+    icon: "https://fastly.jsdelivr.net/gh/Koolson/Qure@master/IconSet/Color/Telegram_X.png"
+
+  # Twitter/X — US preferred for full feature access
+  - name: 推特/X
+    <<: *GroupSelectUS
+    proxies: [美国策略, 香港策略, Proxy, DIRECT]
+    icon: "https://fastly.jsdelivr.net/gh/Koolson/Qure@master/IconSet/Color/X.png"
+
+  # Social / messaging catch-all
+  - name: 社交平台
+    <<: *GroupSelectHK
+    proxies: [香港策略, 台湾策略, 狮城策略, Proxy, DIRECT]
+    icon: "https://fastly.jsdelivr.net/gh/Koolson/Qure@master/IconSet/Color/PBS.png"
+
+  # YouTube — HK/TW for cost-effective high-bandwidth
+  - name: 油管视频
+    <<: *GroupSelectHK
+    proxies: [香港策略, 台湾策略, 美国策略, Proxy, DIRECT]
+    icon: "https://fastly.jsdelivr.net/gh/Koolson/Qure@master/IconSet/Color/YouTube.png"
+
+  # Netflix — US/SG for unlock coverage
+  - name: 奈飞视频
+    <<: *GroupSelectUS
+    proxies: [美国策略, 狮城策略, 香港策略, Proxy, DIRECT]
+    icon: "https://fastly.jsdelivr.net/gh/Koolson/Qure@master/IconSet/Color/Netflix.png"
+
+  # Streaming catch-all — high-bandwidth or US nodes first
+  - name: 流媒体
+    <<: *GroupSelectUS
+    proxies: [美国策略, 狮城策略, 香港策略, 台湾策略, Proxy, DIRECT]
+    icon: "https://fastly.jsdelivr.net/gh/Koolson/Qure@master/IconSet/Color/Streaming.png"
+
+  # Developer tools — GitHub, npm, Docker, etc.
+  - name: 开发工具
+    <<: *GroupSelectProxy
+    proxies: [Proxy, 香港策略, 狮城策略, DIRECT]
+    icon: "https://fastly.jsdelivr.net/gh/Orz-3/mini@master/Color/github.png"
+
+  # Gaming — lowest-latency region first
+  - name: 游戏平台
+    <<: *GroupSelectHK
+    proxies: [香港策略, 台湾策略, 日本策略, Proxy, DIRECT]
+    icon: "https://fastly.jsdelivr.net/gh/Koolson/Qure@master/IconSet/Color/Game.png"
+
+  # News — US preferred for broad access
+  - name: 新闻媒体
+    <<: *GroupSelectUS
+    proxies: [美国策略, Proxy, DIRECT]
+    icon: "https://fastly.jsdelivr.net/gh/Koolson/Qure@master/IconSet/Color/Apple_News.png"
+
+  # ── Tier 3: Regional strategy groups ─────────────────────────────────────
+  # One per region. `proxies` lists leaf sub-groups (automation strategies) first;
+  # `include-all` + `filter` appends matching individual nodes from providers below.
+  # Users can pick a strategy (auto/fallback/LB) OR a specific node in one group.
+
+  - name: 香港策略
+    type: select
+    proxies: [香港高速, 香港可用, 香港均衡-散列, 香港均衡-轮询]
+    include-all: true
+    filter: *FilterHK
+    icon: "https://fastly.jsdelivr.net/gh/Koolson/Qure@master/IconSet/Color/Hong_Kong.png"
+
+  - name: 台湾策略
+    type: select
+    proxies: [台湾高速, 台湾可用, 台湾均衡-散列, 台湾均衡-轮询]
+    include-all: true
+    filter: *FilterTW
+    icon: "https://fastly.jsdelivr.net/gh/Koolson/Qure@master/IconSet/Color/Taiwan.png"
+
+  - name: 美国策略
+    type: select
+    proxies: [美国高速, 美国可用, 美国均衡-散列]
+    include-all: true
+    filter: *FilterUS
+    icon: "https://fastly.jsdelivr.net/gh/Koolson/Qure@master/IconSet/Color/United_States.png"
+
+  - name: 狮城策略
+    type: select
+    proxies: [狮城高速, 狮城可用, 狮城均衡-散列]
+    include-all: true
+    filter: *FilterSG
+    icon: "https://fastly.jsdelivr.net/gh/Koolson/Qure@master/IconSet/Color/Singapore.png"
+
+  - name: 日本策略
+    type: select
+    proxies: [日本高速, 日本可用, 日本均衡-散列]
+    include-all: true
+    filter: *FilterJP
+    icon: "https://fastly.jsdelivr.net/gh/Koolson/Qure@master/IconSet/Color/Japan.png"
+
+  - name: 韩国策略
+    type: select
+    proxies: [韩国高速, 韩国可用, 韩国均衡-散列]
+    include-all: true
+    filter: *FilterKR
+    icon: "https://fastly.jsdelivr.net/gh/Koolson/Qure@master/IconSet/Color/Korea.png"
+
+  - name: 欧盟策略
+    type: select
+    proxies: [欧盟高速, 欧盟可用, 欧盟均衡-散列]
+    include-all: true
+    filter: *FilterEU
+    icon: "https://fastly.jsdelivr.net/gh/Koolson/Qure@master/IconSet/Color/European_Union.png"
+
+  # ── Block groups (also Tier 2) ───────────────────────────────────────────
+  # NEVER hardcode REJECT in rules. Route to a named select so users can
+  # toggle to DIRECT from the dashboard without editing YAML.
+  - name: 🚫 广告拦截
+    type: select
+    proxies: [REJECT, DIRECT]
+    icon: "https://fastly.jsdelivr.net/gh/Koolson/Qure@master/IconSet/Color/Advertising.png"
+  - name: 🕵 追踪拦截
+    type: select
+    proxies: [REJECT, DIRECT]
+    icon: "https://fastly.jsdelivr.net/gh/Koolson/Qure@master/IconSet/Color/Hijacking.png"
+  - name: 🛡️ 协议拦截
+    type: select
+    proxies: [REJECT, DIRECT]
+    icon: "https://fastly.jsdelivr.net/gh/Koolson/Qure@master/IconSet/Color/Reject.png"
+
+  # Catch-all (also Tier 2)
+  - name: 🐟 漏网之鱼
+    type: select
+    proxies: [Proxy, DIRECT]
+    icon: "https://fastly.jsdelivr.net/gh/Koolson/Qure@master/IconSet/Color/Final.png"
+
+  # ── Tier 4: Leaf groups (hidden) ─────────────────────────────────────────
+  # Machinery. hidden: true keeps them out of the dashboard group list.
+  # One line per group — anchors do the heavy lifting.
+  #
+  # url-test: tolerance: 50 avoids constant switching on minor jitter.
+  # consistent-hashing: same destination IP → same proxy (stable for stateful sessions).
+  # round-robin: spread load evenly; good for stateless traffic.
+
+  # Hong Kong
+  - {name: 香港高速,      <<: *GroupUT, filter: *FilterHK, include-all: true, hidden: true}
+  - {name: 香港可用,      <<: *GroupFB, filter: *FilterHK, include-all: true, hidden: true}
+  - {name: 香港均衡-散列, <<: *GroupCH, filter: *FilterHK, include-all: true, hidden: true}
+  - {name: 香港均衡-轮询, <<: *GroupRR, filter: *FilterHK, include-all: true, hidden: true}
+
+  # Taiwan
+  - {name: 台湾高速,      <<: *GroupUT, filter: *FilterTW, include-all: true, hidden: true}
+  - {name: 台湾可用,      <<: *GroupFB, filter: *FilterTW, include-all: true, hidden: true}
+  - {name: 台湾均衡-散列, <<: *GroupCH, filter: *FilterTW, include-all: true, hidden: true}
+  - {name: 台湾均衡-轮询, <<: *GroupRR, filter: *FilterTW, include-all: true, hidden: true}
+
+  # United States
+  - {name: 美国高速,      <<: *GroupUT, filter: *FilterUS, include-all: true, hidden: true}
+  - {name: 美国可用,      <<: *GroupFB, filter: *FilterUS, include-all: true, hidden: true}
+  - {name: 美国均衡-散列, <<: *GroupCH, filter: *FilterUS, include-all: true, hidden: true}
+
+  # Singapore
+  - {name: 狮城高速,      <<: *GroupUT, filter: *FilterSG, include-all: true, hidden: true}
+  - {name: 狮城可用,      <<: *GroupFB, filter: *FilterSG, include-all: true, hidden: true}
+  - {name: 狮城均衡-散列, <<: *GroupCH, filter: *FilterSG, include-all: true, hidden: true}
+
+  # Japan
+  - {name: 日本高速,      <<: *GroupUT, filter: *FilterJP, include-all: true, hidden: true}
+  - {name: 日本可用,      <<: *GroupFB, filter: *FilterJP, include-all: true, hidden: true}
+  - {name: 日本均衡-散列, <<: *GroupCH, filter: *FilterJP, include-all: true, hidden: true}
+
+  # Korea
+  - {name: 韩国高速,      <<: *GroupUT, filter: *FilterKR, include-all: true, hidden: true}
+  - {name: 韩国可用,      <<: *GroupFB, filter: *FilterKR, include-all: true, hidden: true}
+  - {name: 韩国均衡-散列, <<: *GroupCH, filter: *FilterKR, include-all: true, hidden: true}
+
+  # Europe
+  - {name: 欧盟高速,      <<: *GroupUT, filter: *FilterEU, include-all: true, hidden: true}
+  - {name: 欧盟可用,      <<: *GroupFB, filter: *FilterEU, include-all: true, hidden: true}
+  - {name: 欧盟均衡-散列, <<: *GroupCH, filter: *FilterEU, include-all: true, hidden: true}
+
+  # ── Optional: smart leaf variant (vernesong fork only) ───────────────────
+  # Replace the url-test leaves above with these if using the smart kernel.
+  # policy-priority: 优-tier nodes get 4× weight over 备-tier (ratio 2 : 1 : 0.5)
+  #
+  # - {name: 香港智能, <<: *BaseSmart, filter: *FilterHK, include-all: true, hidden: true, policy-priority: '优:2;中:1;备:0.5'}
+  # - {name: 台湾智能, <<: *BaseSmart, filter: *FilterTW, include-all: true, hidden: true, policy-priority: '优:2;中:1;备:0.5'}
+  # - {name: 日本智能, <<: *BaseSmart, filter: *FilterJP, include-all: true, hidden: true, policy-priority: '优:2;中:1;备:0.5'}
+  # - {name: 狮城智能, <<: *BaseSmart, filter: *FilterSG, include-all: true, hidden: true, policy-priority: '优:2;中:1;备:0.5'}
+  # - {name: 美国智能, <<: *BaseSmart, filter: *FilterUS, include-all: true, hidden: true, policy-priority: '优:2;中:1;备:0.5'}
+
+# ── Rules (stub) ─────────────────────────────────────────────────────────────
+# Rules always reference Tier 2 groups (feature or block groups), never
+# hardcode REJECT, DIRECT, or individual proxy names.
+rules:
+  # Private / LAN → always direct
+  - RULE-SET,private,DIRECT
+  - RULE-SET,privateip,DIRECT,no-resolve
+
+  # Block rules — route to named select, not hardcoded REJECT
+  - RULE-SET,block-ads,🚫 广告拦截
+  - RULE-SET,block-hijacking,🕵 追踪拦截
+
+  # Feature groups — Tier 2 only
+  - RULE-SET,openai,人工智能
+  - RULE-SET,claude,人工智能
+  - RULE-SET,gemini,人工智能
+  - RULE-SET,telegram,社交平台
+  - RULE-SET,twitter,社交平台
+  - RULE-SET,instagram,社交平台
+  - RULE-SET,netflix,流媒体
+  - RULE-SET,youtube,流媒体
+  - RULE-SET,steam,游戏平台
+  - RULE-SET,epicgames,游戏平台
+
+  # CN direct
+  - RULE-SET,cn-domain,DIRECT
+  - RULE-SET,cn-ip,DIRECT,no-resolve
+
+  # Catch-all
+  - MATCH,🐟 漏网之鱼
+
+# ── Anti-patterns ─────────────────────────────────────────────────────────────
+# Avoid these common mistakes:
+#
+# ❌ Individual node names in proxies:
+#      proxies: [HK Node 1, HK Node 2]   → breaks when subscription changes
+#    ✅ Use include-all: true + filter: on leaf groups instead
+#
+# ❌ Hardcoded REJECT in rules:
+#      - RULE-SET,block-ads,REJECT        → user has no override path
+#    ✅ Route to a named select group with proxies: [REJECT, DIRECT]
+#
+# ❌ Tier 3 strategy groups as pure selects (no include-all):
+#      proxies: [香港高速, 香港可用]       → users can't pick a specific node
+#    ✅ Add include-all: true + filter: to also expose individual nodes
+#
+# ❌ Mixing Tier 1/2 groups with individual nodes:
+#      proxies: [香港策略, HK Node 1]     → node names break on sub change
+#    ✅ Keep Tier 1/2 proxies lists to named groups + DIRECT/REJECT only
+#
+# ❌ tolerance: 0 or below 50ms on url-test:
+#      tolerance: 10                       → constant group-switching on jitter
+#    ✅ Use tolerance: 50 minimum
+#
+# ❌ Nesting beyond 4 tiers:
+#      Master → Feature → Region → Mode → Node-set → Leaf
+#    ✅ Flatten — merge Feature + Regional into one select where possible
+#
+# ❌ High-multiplier nodes in url-test/LB leaves:
+#      No exclude-filter on leaf groups    → expensive X5/X10 nodes win latency
+#    ✅ Add exclude-filter: *RegexHighMul to every url-test and LB leaf
