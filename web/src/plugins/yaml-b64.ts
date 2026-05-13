@@ -13,11 +13,12 @@
  * Only .yaml files are affected (.yaml.eta uses the text loader unchanged).
  */
 import { load as parseYaml } from 'js-yaml'
-import { compileFilters, compileGroupAnchors } from '../anchor-builder'
+import { compileFilters, compileGroupAnchors, compileRuleProviderAnchors } from '../anchor-builder'
 
-const FILTERS_FILTER      = /profiles\/filter-anchors\.yaml$/
-const GROUP_ANCHORS_FILTER = /profiles\/group-anchors\.yaml$/
-const DEFAULTS_FILTER     = /profiles\/defaults\/[^/]+\.yaml$/
+const FILTERS_FILTER           = /profiles\/filter-anchors\.yaml$/
+const GROUP_ANCHORS_FILTER     = /profiles\/group-anchors\.yaml$/
+const RULE_PROVIDER_FILTER     = /profiles\/rule-provider-anchors\.yaml$/
+const DEFAULTS_FILTER          = /profiles\/defaults\/[^/]+\.yaml$/
 
 export const yamlB64Plugin = {
   name: 'yaml-b64',
@@ -33,6 +34,14 @@ export const yamlB64Plugin = {
     build.onLoad({ filter: GROUP_ANCHORS_FILTER }, async ({ path }: { path: string }) => {
       const doc = parseYaml(await Bun.file(path).text())
       const text = compileGroupAnchors(doc)
+      const b64 = Buffer.from(text, 'utf8').toString('base64')
+      return { contents: `export default ${JSON.stringify(b64)}`, loader: 'js' }
+    })
+
+    // rule-provider-anchors.yaml: compile to YAML text, emit as base64 string export
+    build.onLoad({ filter: RULE_PROVIDER_FILTER }, async ({ path }: { path: string }) => {
+      const doc = parseYaml(await Bun.file(path).text())
+      const text = compileRuleProviderAnchors(doc)
       const b64 = Buffer.from(text, 'utf8').toString('base64')
       return { contents: `export default ${JSON.stringify(b64)}`, loader: 'js' }
     })

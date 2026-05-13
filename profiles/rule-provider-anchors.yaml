@@ -1,0 +1,46 @@
+# profiles/rule-provider-anchors.yaml
+# Source of truth for rule-provider anchor definitions.
+# NOT a Clash config — compiled by anchor-builder.ts to a YAML text fragment.
+#
+# Structure:
+#   name:    anchor name — meta, not emitted as a field
+#   config:  actual Clash rule-provider fields emitted verbatim
+#
+# Edit config values here to update all rule-providers of each type at once.
+# e.g. change interval: 86400 → interval: 43200 to halve the refresh interval.
+
+anchors:
+  - name: RuleProviderDomain
+    config:
+      type: http
+      behavior: domain
+      interval: 86400
+      format: yaml
+
+  - name: RuleProviderIPCIDR
+    config:
+      type: http
+      behavior: ipcidr
+      interval: 86400
+      format: yaml
+
+  - name: RuleProviderClassical
+    config:
+      type: http
+      behavior: classical
+      interval: 86400
+      format: yaml
+
+  - name: RuleProviderDomain_mrs
+    config:
+      type: http
+      behavior: domain
+      interval: 86400
+      format: mrs
+
+  - name: RuleProviderIPCIDR_mrs
+    config:
+      type: http
+      behavior: ipcidr
+      interval: 86400
+      format: mrs

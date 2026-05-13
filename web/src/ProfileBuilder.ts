@@ -20,7 +20,7 @@ import proxyGroupRegionAnchorsTmpl from './templates/proxy-group-region-anchors.
 import _dnsB64                    from '../../profiles/defaults/dns.yaml'
 import _snifferB64                from '../../profiles/defaults/sniffer.yaml'
 import _tunB64                    from '../../profiles/defaults/tun.yaml'
-import _ruleProviderAnchorsB64    from '../../profiles/defaults/rule-provider-anchors.yaml'
+import _ruleProviderAnchorsB64    from '../../profiles/rule-provider-anchors.yaml'
 import _proxyGroupStrategyB64     from '../../profiles/group-anchors.yaml'
 import filtersData                from '../../profiles/filter-anchors.yaml'
 import {

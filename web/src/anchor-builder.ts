@@ -124,3 +124,28 @@ export function compileGroupAnchors(doc: any): string {
 
   return parts.join('\n')
 }
+
+// ── rule-provider-anchors.yaml compiler ──────────────────────────────────────
+
+/** Derive dummy mapping key from anchor name: RuleProviderDomain → _p_domain */
+function _ruleProviderKey(name: string): string {
+  return '_p_' + name.replace(/^RuleProvider/, '').toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/_$/, '')
+}
+
+/**
+ * Compile a parsed rule-provider-anchors.yaml doc into a YAML text fragment.
+ * Emits &RuleProviderDomain, &RuleProviderIPCIDR, … anchors.
+ */
+export function compileRuleProviderAnchors(doc: any): string {
+  const parts: string[] = [
+    '# ── rule provider anchors ─────────────────────────────────────────────────────',
+    '# Edit profiles/rule-provider-anchors.yaml to update all rule-providers of each type.',
+  ]
+  const anchors: any[] = doc?.anchors ?? []
+  anchors.forEach(a => {
+    parts.push(`${_ruleProviderKey(a.name)}: &${a.name}`)
+    parts.push(..._emitFields(a.config ?? {}))
+    parts.push('')
+  })
+  return parts.join('\n').trimEnd()
+}
