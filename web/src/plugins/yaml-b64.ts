@@ -18,6 +18,7 @@ import { compileFilters, compileGroupAnchors, compileRuleProviderAnchors } from 
 const FILTERS_FILTER           = /profiles\/filter-anchors\.yaml$/
 const GROUP_ANCHORS_FILTER     = /profiles\/group-anchors\.yaml$/
 const RULE_PROVIDER_FILTER     = /profiles\/rule-provider-anchors\.yaml$/
+const SERVICE_GROUPS_FILTER    = /profiles\/service-groups\.yaml$/
 const DEFAULTS_FILTER          = /profiles\/defaults\/[^/]+\.yaml$/
 
 export const yamlB64Plugin = {
@@ -44,6 +45,12 @@ export const yamlB64Plugin = {
       const text = compileRuleProviderAnchors(doc)
       const b64 = Buffer.from(text, 'utf8').toString('base64')
       return { contents: `export default ${JSON.stringify(b64)}`, loader: 'js' }
+    })
+
+    // service-groups.yaml: parse and emit as JS object export (same as filter-anchors)
+    build.onLoad({ filter: SERVICE_GROUPS_FILTER }, async ({ path }: { path: string }) => {
+      const doc = parseYaml(await Bun.file(path).text())
+      return { contents: `export default ${JSON.stringify(doc)}`, loader: 'js' }
     })
 
     // profiles/defaults/*.yaml: emit as base64 string (decoded at runtime)

@@ -23,12 +23,12 @@ import _tunB64                    from '../../profiles/defaults/tun.yaml'
 import _ruleProviderAnchorsB64    from '../../profiles/rule-provider-anchors.yaml'
 import _proxyGroupStrategyB64     from '../../profiles/group-anchors.yaml'
 import filtersData                from '../../profiles/filter-anchors.yaml'
+import serviceGroupsData          from '../../profiles/service-groups.yaml'
 import {
   CDN_BASE, RELEASES_BASE, RULESETS_URL,
   SPLIT_ORDER, SPLIT_BEHAVIOR,
   GEODATA_SOURCES,
-  SERVICE_MAP, _REGIONS, _FALLBACK_REGIONS, _DIRECT_GROUPS, _REJECT_GROUPS,
-  ICON_BASE, ORZ3_BASE, REGION_ICONS, SERVICE_ICONS, BLOCK_ICONS,
+  ICON_BASE, ORZ3_BASE,
   RULE_INTERVAL,
 } from './constants'
 
@@ -48,8 +48,17 @@ const _proxyGroupStrategyAnchors = () => _decode(_proxyGroupStrategyB64)
 
 const _eta = new Eta({ autoEscape: false, autoTrim: false })
 
-// Lookup map from region key → filter-anchors.yaml region entry (pattern + filter)
-const _filtersByKey = new Map(filtersData.regions.map(r => [r.key, r]))
+// ── Service groups data (from profiles/service-groups.yaml) ─────────────────
+const _sgById    = new Map((serviceGroupsData.groups as any[]).map(g => [g.id, g]))
+const _DIRECT_GROUPS = new Set(
+  (serviceGroupsData.groups as any[]).filter(g => !g.anchor && g.proxies?.[0] === 'DIRECT').map(g => g.id)
+)
+const _REJECT_GROUPS = new Set(
+  (serviceGroupsData.groups as any[]).filter(g => g.proxies?.[0] === 'REJECT').map(g => g.id)
+)
+
+// Region list derived from filter-anchors.yaml (canonical order: HK/TW/SG/JP/KR/US/EU)
+const _REGIONS = filtersData.regions
 
 /**
  * Build mihomo rule-providers + ordered rules for selected catalog groups.
@@ -222,13 +231,6 @@ function _regionFilter(pattern, exclude) {
 /** Render an eta template string and trim trailing whitespace. */
 function _tmpl(template, data) { return _eta.renderString(template, data).trimEnd() }
 
-/** Returns the full icon URL for a service group id, or null. */
-function _serviceIconUrl(gid) {
-  const v = SERVICE_ICONS[gid]
-  if (!v) return null
-  return v.startsWith('http') ? v : `${ICON_BASE}/${v}`
-}
-
 /** Filter regex WITHOUT user regionExcludes — for anchor block definitions. */
 function _regionFilterValue(pattern) {
   return `^(?=.*(?i)(${pattern})).*$`
@@ -245,11 +247,10 @@ function _proxyGroupAnchorCtx(topology, target) {
     regexHighMul: filtersData.HighMulPattern,
     smart: target === 'mihomo-smart',
     regions: topology === 'global' ? [] : _REGIONS.map(r => {
-      const fd = _filtersByKey.get(r.key)
       return {
         name: r.name,
         key: r.key,
-        filterValue: filtersData[`Filter${r.key}`] || _regionFilterValue(fd?.pattern ?? ''),
+        filterValue: filtersData[`Filter${r.key}`] || _regionFilterValue(r.pattern ?? ''),
         proxies: [
           ...leafSuffixes.map(s => `${r.name}${s}`),
           ..._REGIONS.filter(rr => rr.key !== r.key).map(rr => `${rr.name}策略`),
@@ -321,9 +322,10 @@ function _buildProxyGroups(groupIds, { topology, target, features, regionExclude
 
   // ── Block groups (Tier 2) ──────────────────────────────────────────────────
   for (const gid of rejectGroups) {
-    const name = (SERVICE_MAP[gid] || [`🚫 ${gid.split('/')[1]}`])[0]
+    const sg = _sgById.get(gid)
+    const name = sg?.name ?? `🚫 ${gid.split('/')[1]}`
     const g: any = { name, type: 'select', proxies: ['REJECT', 'DIRECT'] }
-    if (BLOCK_ICONS[gid]) g.icon = `${ICON_BASE}/${BLOCK_ICONS[gid]}`
+    if (sg?.icon) g.icon = sg.icon
     groups.push(g)
   }
   if (features?.quic_block)
@@ -332,13 +334,12 @@ function _buildProxyGroups(groupIds, { topology, target, features, regionExclude
   // ── Service groups (Tier 2) ────────────────────────────────────────────────
   const effectiveMap = {}
   for (const gid of serviceGroups) {
-    const entry = SERVICE_MAP[gid]
-    const displayName = entry ? entry[0] : `🌐 ${gid.split('/')[1]}`
-    const preferred   = entry ? entry[1] : []  // null = anchor default; array = override
-    const anchorKey   = entry ? entry[2] : null
+    const sg = _sgById.get(gid)
+    const displayName = sg?.name ?? `🌐 ${gid.split('/')[1]}`
+    const anchorKey   = sg?.anchor ?? null
+    const preferred   = sg?.proxies ?? null  // null = anchor default; array = override
 
     let g: any
-    const iconUrl = _serviceIconUrl(gid)
 
     if (anchorKey && topology !== 'global') {
       // P12: emit <<: *GroupSelectXX anchor reference
@@ -365,7 +366,7 @@ function _buildProxyGroups(groupIds, { topology, target, features, regionExclude
       }
     }
 
-    if (iconUrl) g.icon = iconUrl
+    if (sg?.icon) g.icon = sg.icon
     effectiveMap[gid] = [displayName, g.proxies?.[0] ?? displayName]
     groups.push(g)
   }
@@ -374,7 +375,7 @@ function _buildProxyGroups(groupIds, { topology, target, features, regionExclude
   if (topology !== 'global') {
     // Tier 3: strategy groups
     for (const r of _REGIONS) {
-      const filter = useFilterAnchors ? `*Filter${r.key}` : _regionFilter(_filtersByKey.get(r.key)?.pattern ?? '', regionExcludes)
+      const filter = useFilterAnchors ? `*Filter${r.key}` : _regionFilter(r.pattern ?? '', regionExcludes)
       const leafNames = [`${r.name}高速`, `${r.name}可用`]
       if (topology === 'advanced') leafNames.push(`${r.name}均衡-散列`, `${r.name}均衡-轮询`)
 
@@ -386,7 +387,7 @@ function _buildProxyGroups(groupIds, { topology, target, features, regionExclude
         filter,
         'exclude-filter': '*FilterExclude',
       }
-      if (REGION_ICONS[r.name]) strat.icon = `${ICON_BASE}/${REGION_ICONS[r.name]}`
+      if (r.icon) strat.icon = r.icon
       groups.push(strat)
     }
 
@@ -398,7 +399,7 @@ function _buildProxyGroups(groupIds, { topology, target, features, regionExclude
       : {}
 
     for (const r of _REGIONS) {
-      const filter = useFilterAnchors ? `*Filter${r.key}` : _regionFilter(_filtersByKey.get(r.key)?.pattern ?? '', regionExcludes)
+      const filter = useFilterAnchors ? `*Filter${r.key}` : _regionFilter(r.pattern ?? '', regionExcludes)
 
       groups.push({ name: `${r.name}高速`, _anchorRef: anchorForAutoType, filter, hidden: true, ...smartExtra })
       groups.push({ name: `${r.name}可用`,  _anchorRef: 'GroupFallback',  filter, hidden: true })
@@ -497,7 +498,7 @@ function _buildRules2(groupIds, catalog, effectiveMap, features, format = 'yaml-
   // block groups → named proxy group (never hardcode REJECT)
   for (const gid of groupIds)
     if (_REJECT_GROUPS.has(gid)) {
-      const name = (SERVICE_MAP[gid] || [`🚫 ${gid.split('/')[1]}`])[0]
+      const name = _sgById.get(gid)?.name ?? `🚫 ${gid.split('/')[1]}`
       rules.push(`RULE-SET,${_slug2(gid)},${name}`)
     }
 

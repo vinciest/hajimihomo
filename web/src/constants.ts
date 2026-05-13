@@ -48,87 +48,9 @@ export const ORZ3_BASE = 'https://fastly.jsdelivr.net/gh/Orz-3/mini@master/Color
 
 // ── Proxy group configuration ──────────────────────────────────────────────────
 
-// Maps catalog group ID → [display name, preferred: string[]|null, anchorKey: string|null]
-// preferred = null  → use anchor default proxies (don't emit explicit proxies list)
-// preferred = []    → empty override (emit Proxy+DIRECT only, e.g. block/direct groups)
-// anchorKey         → region key ('HK','US',...) or 'Proxy' or 'Direct' or null
-export const SERVICE_MAP = {
-  'block/ads':          ['🚫 广告拦截',   [],   null],
-  'block/ads-lite':     ['🚫 广告(轻)',   [],   null],
-  'block/tracking':     ['🕵 追踪拦截',   [],   null],
-  'direct/cn':          ['🇨🇳 直连',      [],   null],
-  'direct/cn-ips':      ['🇨🇳 直连IP',    [],   null],
-  'direct/cn-no-media': ['🇨🇳 直连(无媒体)', [], null],
-  'proxy/ai':           ['人工智能',  null,  'US'],
-  'proxy/google':       ['谷歌服务',  null,  'HK'],
-  'proxy/apple':        ['苹果服务',  null,  'HK'],
-  'proxy/microsoft':    ['微软服务',  ['Proxy', '香港策略', '台湾策略', 'DIRECT'],  'Proxy'],
-  'proxy/amazon':       ['亚马逊',    null,  'US'],
-  'proxy/telegram':     ['电报消息',  null,  'HK'],
-  'proxy/twitter':      ['推特/X',    null,  'US'],
-  'proxy/youtube':      ['油管视频',  ['香港均衡-散列', '台湾均衡-散列', '美国均衡-散列', '香港策略', '台湾策略', '美国策略', 'Proxy', 'DIRECT'],  'HK'],
-  'proxy/netflix':      ['奈飞视频',  ['美国均衡-散列', '狮城均衡-散列', '香港均衡-散列', '美国策略', '狮城策略', 'Proxy', 'DIRECT'],  'US'],
-  'proxy/streaming':    ['流媒体',    ['美国均衡-散列', '狮城均衡-散列', '香港均衡-散列', '美国策略', '狮城策略', '香港策略', 'Proxy', 'DIRECT'],  'US'],
-  'proxy/social':       ['社交平台',  null,  'HK'],
-  'proxy/gaming':       ['游戏平台',  ['香港策略', '台湾策略', '日本策略', 'Proxy', 'DIRECT'],  'HK'],
-  'proxy/dev':          ['开发工具',  ['Proxy', '香港策略', '狮城策略', 'DIRECT'],  'Proxy'],
-  'proxy/finance':      ['金融服务',  null,  'HK'],
-  'proxy/news':         ['新闻媒体',  ['美国策略', 'Proxy', 'DIRECT'],  'US'],
-  'meta/block':         ['🚫 Meta拦截',  [],  null],
-  'meta/cn':            ['🇨🇳 Meta直连', [],  null],
-  'meta/foreign':       ['🌐 Meta外网',  ['Proxy'],  null],
-}
-
-export const _REGIONS = [
-  { name: '香港', key: 'HK' },
-  { name: '台湾', key: 'TW' },
-  { name: '狮城', key: 'SG' },
-  { name: '日本', key: 'JP' },
-  { name: '韩国', key: 'KR' },
-  { name: '美国', key: 'US' },
-  { name: '欧盟', key: 'EU' },
-]
-export const _FALLBACK_REGIONS = ['香港', '狮城', '日本', '美国']
-export const _DIRECT_GROUPS = new Set(['direct/cn', 'direct/cn-ips', 'direct/cn-no-media', 'meta/cn'])
-export const _REJECT_GROUPS = new Set(['block/ads', 'block/ads-lite', 'block/tracking', 'meta/block'])
-
 // ── Icons ──────────────────────────────────────────────────────────────────────
 
 export const ICON_BASE = 'https://fastly.jsdelivr.net/gh/Koolson/Qure@master/IconSet/Color'
-export const REGION_ICONS = {
-  '香港': 'Hong_Kong.png',
-  '台湾': 'Taiwan.png',
-  '狮城': 'Singapore.png',
-  '日本': 'Japan.png',
-  '韩国': 'Korea.png',
-  '美国': 'United_States.png',
-  '欧盟': 'European_Union.png',
-}
-export const SERVICE_ICONS = {
-  'proxy/ai':        'AI.png',
-  'proxy/google':    'Google_Search.png',
-  'proxy/apple':     'Apple.png',
-  'proxy/microsoft': 'Microsoft.png',
-  'proxy/amazon':    'Amazon.png',
-  'proxy/telegram':  'Telegram_X.png',
-  'proxy/twitter':   'X.png',
-  'proxy/youtube':   'YouTube.png',
-  'proxy/netflix':   'Netflix.png',
-  'proxy/streaming': 'Streaming.png',
-  'proxy/social':    'PBS.png',
-  'proxy/gaming':    'Game.png',
-  'proxy/dev':       'https://fastly.jsdelivr.net/gh/Orz-3/mini@master/Color/github.png',
-  'proxy/finance':   'Finance.png',
-  'proxy/news':      'Apple_News.png',
-}
-export const BLOCK_ICONS = {
-  'block/ads':      'Advertising.png',
-  'block/ads-lite': 'Advertising.png',
-  'block/tracking': 'Hijacking.png',
-  'meta/block':     'Reject.png',
-}
-
-// ── Profile defaults key groups ────────────────────────────────────────────────
 
 export const _CORE_KEYS = [
   'mixed-port', 'allow-lan', 'bind-address', 'mode', 'log-level',

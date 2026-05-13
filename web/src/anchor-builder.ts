@@ -60,6 +60,7 @@ export interface RegionEntry {
   key: string
   pattern: string
   filter: string
+  icon?: string
 }
 
 export interface FiltersData {
@@ -93,7 +94,7 @@ export function compileFilters(doc: any): FiltersData {
     if (a.label) {
       const key = (a.name as string).replace(/^Filter/, '')
       const pattern = vars[key.toLowerCase() + '-pattern'] ?? ''
-      regions.push({ name: a.label, key, pattern, filter: value })
+      regions.push({ name: a.label, key, pattern, filter: value, icon: a.icon })
     }
   }
 

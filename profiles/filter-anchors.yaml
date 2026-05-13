@@ -4,26 +4,29 @@
 #
 # Structure (same shape as group-anchors / rule-provider-anchors):
 #   vars:      raw alternation strings substituted into anchor values via {{var}}
-#   anchors:   explicit anchor definitions — name: + value: (string anchor, vs config: for mappings)
-#              region anchors carry an extra label: field (Chinese display name)
+#   anchors:   explicit anchor definitions — name: + value: (string anchor)
+#              region anchors carry label: (display name) and icon: (full URL)
 #
 # § How anchors are used in generated profiles:
 #   &FilterInfo     — filter: on 通知公告 (positive match for info/announcement nodes)
 #   &FilterExclude  — exclude-filter: on every proxy leaf group
-#   &FilterHK/TW/…  — filter: on region leaf groups
+#   &FilterHK/TW/…  — filter: on region leaf and strategy groups
+#
+# § Region order here is the canonical order used throughout the generated profile
+#   (group names, strategy group ordering, etc.).
 
 vars:
   info-pattern: '群|邀请|返利|循环|官网|网站|网址|获取|订阅|流量|到期|机场|下次|版本|官址|备用|过期|已用|联系|客服|邮箱|工单|贩卖|通知|倒卖|防止|国内|地址|频道|无法|说明|使用|提示|访问|支持|教程|关注|更新|作者|加入|(?i)USE|USED|TOTAL|EXPIRE|EMAIL|Panel|Channel|Author|Traffic'
   custom-exclude-pattern: 'X5|5x|X10|10x|DirectAccess|移动网络|禁止下载|禁止视频'
 
   hk-pattern: '港|香港|🇭🇰|HK|HKG|Hong ?Kong'
-  tw-pattern: '台|台湾|��🇼|TW|TWN|Taiwan|TPE|TSA|KHH'
+  tw-pattern: '台|台湾|🇹🇼|TW|TWN|Taiwan|TPE|TSA|KHH'
   sg-pattern: '坡|狮城|🇸🇬|SG|SGP|Singapore|SIN|XSP|新加坡'
-  us-pattern: '美|美国|🇺🇸|US|USA|United ?States|SJC|JFK|LAX|ORD|ATL|DFW|SFO|MIA|SEA|IAD|波特兰|达拉斯|俄勒冈|凤凰城|费利蒙|硅谷|拉斯维加斯|洛杉矶|旧金山|圣何塞|圣克拉拉|西雅图|芝加哥'
-  us-exclude: '亚美尼亚'
   jp-pattern: '日|日本|🇯🇵|JP|JPN|Japan|NRT|HND|KIX|CTS|FUK|东京|大阪|泉日|埼玉'
   jp-exclude: '尼日利亚'
   kr-pattern: '韩|韩国|🇰🇷|KR|KOR|Korea|南朝鲜|首尔'
+  us-pattern: '美|美国|🇺🇸|US|USA|United ?States|SJC|JFK|LAX|ORD|ATL|DFW|SFO|MIA|SEA|IAD|波特兰|达拉斯|俄勒冈|凤凰城|费利蒙|硅谷|拉斯维加斯|洛杉矶|旧金山|圣何塞|圣克拉拉|西雅图|芝加哥'
+  us-exclude: '亚美尼亚'
   eu-pattern: '奥|比|保|克罗地亚|塞|捷|丹|爱沙|芬|法|德|希|匈|爱|意|拉|立|卢|马|荷|波|葡|罗|西|瑞典|英|🇩🇪|🇫🇷|🇬🇧|🇳🇱|🇸🇪|CDG|FRA|AMS|LHR|MUC'
 
 anchors:
@@ -35,28 +38,35 @@ anchors:
 
   - name: FilterHK
     label: 香港
+    icon: 'https://fastly.jsdelivr.net/gh/Koolson/Qure@master/IconSet/Color/Hong_Kong.png'
     value: '^(?=.*(?i)({{hk-pattern}})).*$'
 
   - name: FilterTW
     label: 台湾
+    icon: 'https://fastly.jsdelivr.net/gh/Koolson/Qure@master/IconSet/Color/Taiwan.png'
     value: '^(?=.*(?i)({{tw-pattern}})).*$'
 
   - name: FilterSG
     label: 狮城
+    icon: 'https://fastly.jsdelivr.net/gh/Koolson/Qure@master/IconSet/Color/Singapore.png'
     value: '^(?=.*(?i)({{sg-pattern}})).*$'
-
-  - name: FilterUS
-    label: 美国
-    value: '^(?=.*(?i)({{us-pattern}}))(?!.*({{us-exclude}})).*$'
 
   - name: FilterJP
     label: 日本
+    icon: 'https://fastly.jsdelivr.net/gh/Koolson/Qure@master/IconSet/Color/Japan.png'
     value: '^(?=.*(?i)({{jp-pattern}}))(?!.*({{jp-exclude}})).*$'
 
   - name: FilterKR
     label: 韩国
+    icon: 'https://fastly.jsdelivr.net/gh/Koolson/Qure@master/IconSet/Color/Korea.png'
     value: '^(?=.*(?i)({{kr-pattern}})).*$'
+
+  - name: FilterUS
+    label: 美国
+    icon: 'https://fastly.jsdelivr.net/gh/Koolson/Qure@master/IconSet/Color/United_States.png'
+    value: '^(?=.*(?i)({{us-pattern}}))(?!.*({{us-exclude}})).*$'
 
   - name: FilterEU
     label: 欧盟
+    icon: 'https://fastly.jsdelivr.net/gh/Koolson/Qure@master/IconSet/Color/European_Union.png'
     value: '^(?=.*(?i)({{eu-pattern}})).*$'

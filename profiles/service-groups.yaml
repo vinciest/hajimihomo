@@ -1,0 +1,156 @@
+# profiles/service-groups.yaml
+# Source of truth for all proxy-group definitions (Tier 2 feature, block, and direct groups).
+# Compiled into the generated profile by ProfileBuilder — edit here, never hardcode in TS.
+#
+# Fields:
+#   id:      catalog group ID — must match source/catalog.yaml
+#   name:    display name shown in the proxy client dashboard
+#   anchor:  GroupSelect<anchor> ref — region key (HK/US/…), Proxy, or Direct
+#            absent = no anchor, use explicit proxies: list only
+#   proxies: explicit proxy list override
+#            absent + anchor present  → use anchor default proxies (null in old SERVICE_MAP)
+#            present + anchor present → override anchor's proxies list
+#            present + no anchor      → bare select with explicit list
+#   icon:    full icon URL (inline — multiple CDN sources in use)
+#
+# § Group roles derived from data (no separate type: field needed):
+#   reject group  → proxies[0] === 'REJECT'  (routes to named select so user can toggle)
+#   direct group  → no anchor + proxies[0] === 'DIRECT' (excluded from dashboard groups)
+#   feature group → has anchor: field
+
+groups:
+
+  # ── Block / reject groups ─────────────────────────────────────────────────────
+  # NEVER hardcode REJECT in rules — route here so user can toggle from dashboard.
+
+  - id: block/ads
+    name: 🚫 广告拦截
+    proxies: [REJECT, DIRECT]
+    icon: 'https://fastly.jsdelivr.net/gh/Koolson/Qure@master/IconSet/Color/Advertising.png'
+
+  - id: block/ads-lite
+    name: 🚫 广告(轻)
+    proxies: [REJECT, DIRECT]
+    icon: 'https://fastly.jsdelivr.net/gh/Koolson/Qure@master/IconSet/Color/Advertising.png'
+
+  - id: block/tracking
+    name: 🕵 追踪拦截
+    proxies: [REJECT, DIRECT]
+    icon: 'https://fastly.jsdelivr.net/gh/Koolson/Qure@master/IconSet/Color/Hijacking.png'
+
+  - id: meta/block
+    name: 🚫 Meta拦截
+    proxies: [REJECT, DIRECT]
+    icon: 'https://fastly.jsdelivr.net/gh/Koolson/Qure@master/IconSet/Color/Reject.png'
+
+  # ── Direct groups ──────────────────────────────────────────────────────────────
+  # Not shown as proxy groups in the dashboard — rules route directly to DIRECT.
+
+  - id: direct/cn
+    name: 🇨�� 直连
+    proxies: [DIRECT]
+
+  - id: direct/cn-ips
+    name: 🇨🇳 直连IP
+    proxies: [DIRECT]
+
+  - id: direct/cn-no-media
+    name: 🇨🇳 直连(无媒体)
+    proxies: [DIRECT]
+
+  - id: meta/cn
+    name: 🇨🇳 Meta直连
+    proxies: [DIRECT]
+
+  # ── Meta catch-all ─────────────────────────────────────────────────────────────
+
+  - id: meta/foreign
+    name: 🌐 Meta外网
+    proxies: [Proxy, DIRECT]
+
+  # ── Feature proxy groups (Tier 2) ─────────────────────────────────────────────
+  # anchor: → <<: *GroupSelect<anchor>  (e.g. anchor: HK → *GroupSelectHK)
+  # No proxies: → anchor defines the proxies list (best for most groups).
+  # With proxies: → overrides the anchor's default proxies list.
+
+  - id: proxy/ai
+    name: 人工智能
+    anchor: US
+    icon: 'https://fastly.jsdelivr.net/gh/Koolson/Qure@master/IconSet/Color/AI.png'
+
+  - id: proxy/google
+    name: 谷歌服务
+    anchor: HK
+    icon: 'https://fastly.jsdelivr.net/gh/Koolson/Qure@master/IconSet/Color/Google_Search.png'
+
+  - id: proxy/apple
+    name: 苹果服务
+    anchor: HK
+    icon: 'https://fastly.jsdelivr.net/gh/Koolson/Qure@master/IconSet/Color/Apple.png'
+
+  - id: proxy/microsoft
+    name: 微软服务
+    anchor: Proxy
+    proxies: [Proxy, 香港策略, 台湾策略, DIRECT]
+    icon: 'https://fastly.jsdelivr.net/gh/Koolson/Qure@master/IconSet/Color/Microsoft.png'
+
+  - id: proxy/amazon
+    name: 亚马逊
+    anchor: US
+    icon: 'https://fastly.jsdelivr.net/gh/Koolson/Qure@master/IconSet/Color/Amazon.png'
+
+  - id: proxy/telegram
+    name: 电报消息
+    anchor: HK
+    icon: 'https://fastly.jsdelivr.net/gh/Koolson/Qure@master/IconSet/Color/Telegram_X.png'
+
+  - id: proxy/twitter
+    name: 推特/X
+    anchor: US
+    icon: 'https://fastly.jsdelivr.net/gh/Koolson/Qure@master/IconSet/Color/X.png'
+
+  - id: proxy/youtube
+    name: 油管视频
+    anchor: HK
+    proxies: [香港均衡-散列, 台湾均衡-散列, 美国均衡-散列, 香港策略, 台湾策略, 美国策略, Proxy, DIRECT]
+    icon: 'https://fastly.jsdelivr.net/gh/Koolson/Qure@master/IconSet/Color/YouTube.png'
+
+  - id: proxy/netflix
+    name: 奈飞视频
+    anchor: US
+    proxies: [美国均衡-散列, 狮城均衡-散列, 香港均衡-散列, 美国策略, 狮城策略, Proxy, DIRECT]
+    icon: 'https://fastly.jsdelivr.net/gh/Koolson/Qure@master/IconSet/Color/Netflix.png'
+
+  - id: proxy/streaming
+    name: 流媒体
+    anchor: US
+    proxies: [美国均衡-散列, 狮城均衡-散列, 香港均衡-散列, 美国策略, 狮城策略, 香港策略, Proxy, DIRECT]
+    icon: 'https://fastly.jsdelivr.net/gh/Koolson/Qure@master/IconSet/Color/Streaming.png'
+
+  - id: proxy/social
+    name: 社交平台
+    anchor: HK
+    icon: 'https://fastly.jsdelivr.net/gh/Koolson/Qure@master/IconSet/Color/PBS.png'
+
+  - id: proxy/gaming
+    name: 游戏平台
+    anchor: HK
+    proxies: [香港策略, 台湾策略, 日本策略, Proxy, DIRECT]
+    icon: 'https://fastly.jsdelivr.net/gh/Koolson/Qure@master/IconSet/Color/Game.png'
+
+  - id: proxy/dev
+    name: 开发工具
+    anchor: Proxy
+    proxies: [Proxy, 香港策略, 狮城策略, DIRECT]
+    icon: 'https://fastly.jsdelivr.net/gh/Orz-3/mini@master/Color/github.png'
+
+  - id: proxy/finance
+    name: 金融服务
+    anchor: HK
+    icon: 'https://fastly.jsdelivr.net/gh/Koolson/Qure@master/IconSet/Color/Finance.png'
+
+  - id: proxy/news
+    name: 新闻媒体
+    anchor: US
+    proxies: [美国策略, Proxy, DIRECT]
+    icon: 'https://fastly.jsdelivr.net/gh/Koolson/Qure@master/IconSet/Color/Apple_News.png'
