@@ -2,10 +2,14 @@
 # Source of truth for static proxy group anchor definitions.
 # NOT a Clash config — compiled by anchor-builder.ts to a YAML text fragment.
 #
-# Syntax:
+# Structure:
+#   name:     anchor name (e.g. GroupBase) — meta, not emitted as a field
+#   extends:  parent anchor for <<: *<Name> merge key — meta, not emitted as a field
+#   fields:   actual Clash config fields emitted verbatim
+#
+# Template vars in fields values:
 #   {{HealthUrl}}     → emitted as *HealthUrl     (YAML anchor reference)
 #   {{FilterExclude}} → emitted as *FilterExclude  (YAML anchor reference)
-#   extends: <Name>   → emitted as <<: *<Name>     (YAML merge key)
 #
 # § GroupBase
 #   Shared fields inherited by all auto-selection leaf groups (url-test, fallback, LB).
@@ -14,45 +18,51 @@
 #
 # § types[]
 #   Each entry defines a group-type anchor that extends GroupBase.
-#   Fields are emitted in declaration order.
+#   fields are emitted after the <<: *<extends> merge key, in declaration order.
 #
 # § select
 #   Bare select anchor (no include-all, no filter) used for strategy groups.
 
 base:
   name: GroupBase
-  url: '{{HealthUrl}}'
-  lazy: true
-  include-all: true
-  exclude-filter: '{{FilterExclude}}'
+  fields:
+    url: '{{HealthUrl}}'
+    lazy: true
+    include-all: true
+    exclude-filter: '{{FilterExclude}}'
 
 types:
   - name: GroupUrlTest
     extends: GroupBase
-    type: url-test
-    interval: 180
-    tolerance: 50
+    fields:
+      type: url-test
+      interval: 180
+      tolerance: 50
 
   - name: GroupFallback
     extends: GroupBase
-    type: fallback
-    interval: 300
-    tolerance: 100
+    fields:
+      type: fallback
+      interval: 300
+      tolerance: 100
 
   - name: GroupLBHash
     extends: GroupBase
-    type: load-balance
-    strategy: consistent-hashing
-    interval: 300
-    tolerance: 100
+    fields:
+      type: load-balance
+      strategy: consistent-hashing
+      interval: 300
+      tolerance: 100
 
   - name: GroupLBRobin
     extends: GroupBase
-    type: load-balance
-    strategy: round-robin
-    interval: 300
-    tolerance: 100
+    fields:
+      type: load-balance
+      strategy: round-robin
+      interval: 300
+      tolerance: 100
 
 select:
   name: GroupSelect
-  type: select
+  fields:
+    type: select
