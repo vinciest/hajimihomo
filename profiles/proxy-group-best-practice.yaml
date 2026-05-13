@@ -17,7 +17,7 @@ proxy-group-anchors:
   FilterHK: &FilterHK '^(?=.*(?i)(🇭🇰|\b港\b|香港|HK|HKG|Hong ?Kong))(?!.*(X5|5x|X10|10x|DirectAccess|移动网络|禁止下载|禁止视频)).*$'
   FilterTW: &FilterTW '^(?=.*(?i)(🇹🇼|\b台\b|台湾|TW|TWN|Taiwan|TPE|TSA|KHH))(?!.*(X5|5x|X10|10x|DirectAccess|移动网络|禁止下载|禁止视频)).*$'
   FilterSG: &FilterSG '^(?=.*(?i)(🇸🇬|\b坡\b|狮城|SG|SGP|Singapore|SIN|XSP|新加坡))(?!.*(X5|5x|X10|10x|DirectAccess|移动网络|禁止下载|禁止视频)).*$'
-  FilterJP: &FilterJP '^(?=.*(?i)(🇯🇵|\b日\b|日本|JP|JPN|Japan|NRT|HND|KIX|CTS|FUK|东京|大阪|泉日|埼玉|沪日|深日|川日))(?!.*(X5|5x|X10|10x|DirectAccess|移动网络|禁止下载|禁止视频)).*$'
+  FilterJP: &FilterJP '^(?=.*(?i)(🇯🇵|\b日\b|日本|JP|JPN|Japan|NRT|HND|KIX|CTS|FUK|东京|大阪|泉日|埼玉))(?!.*(X5|5x|X10|10x|DirectAccess|移动网络|禁止下载|禁止视频)).*$'
   FilterKR: &FilterKR '^(?=.*(?i)(🇰🇷|\b韩\b|韩国|KR|KOR|Korea|南朝鲜|首尔))(?!.*(X5|5x|X10|10x|DirectAccess|移动网络|禁止下载|禁止视频)).*$'
   FilterUS: &FilterUS '^(?=.*(?i)(🇺🇸|\b美\b|美国|US|USA|United ?States|SJC|JFK|LAX|ORD|ATL|DFW|SFO|MIA|SEA|IAD|波特兰|达拉斯|俄勒冈|凤凰城|费利蒙|硅谷|拉斯维加斯|洛杉矶|圣何塞|圣克拉拉|西雅图|芝加哥))(?!.*(X5|5x|X10|10x|DirectAccess|移动网络|禁止下载|禁止视频)).*$'
   FilterEU: &FilterEU '^(?=.*(?i)(奥|比|保|克罗地亚|塞|捷|丹|爱沙|芬|法|德|希|匈|爱|意|拉|立|卢|马|荷|波|葡|罗|西|瑞典|英|🇩🇪|🇫🇷|🇬🇧|🇳🇱|🇸🇪|CDG|FRA|AMS|LHR|MUC))(?!.*(X5|5x|X10|10x|DirectAccess|移动网络|禁止下载|禁止视频)).*$'
