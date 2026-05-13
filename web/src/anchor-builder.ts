@@ -37,8 +37,9 @@ export interface FiltersData {
  * consumed by ProfileBuilder and the yaml-b64 plugin.
  */
 export function compileFilters(doc: any): FiltersData {
-  const infoPattern: string = doc?.patterns?.['info-pattern'] ?? ''
-  const highMulPattern: string = doc?.patterns?.['custom-exclude-pattern'] ?? ''
+  const vars: Record<string, string> = doc?.vars ?? {}
+  const infoPattern: string = vars['info-pattern'] ?? ''
+  const highMulPattern: string = vars['custom-exclude-pattern'] ?? ''
   const filterTemplates: Record<string, string> = doc?.filters ?? {}
 
   const sharedVars = { 'info-pattern': infoPattern, 'custom-exclude-pattern': highMulPattern }
@@ -67,8 +68,10 @@ export function compileFilters(doc: any): FiltersData {
 
 // ── group-anchors.yaml compiler ───────────────────────────────────────────────
 
-// Well-known dummy key names for the group type anchors (positional).
-const _TYPE_KEYS = ['_g_ut', '_g_fb', '_g_lb_ch', '_g_lb_rr']
+// Dummy key prefixes for group anchors — positional within their role bucket.
+const _G_BASE_KEY  = '_g_base'
+const _G_TYPE_KEYS = ['_g_ut', '_g_fb', '_g_lb_ch', '_g_lb_rr']
+const _G_SEL_KEY   = '_g_sel'
 
 /**
  * Resolve a field value: expand {{Var}} to *Var (YAML anchor reference).
@@ -85,45 +88,38 @@ function _emitFields(fields: Record<string, unknown>): string[] {
 }
 
 /**
- * Compile a parsed group-anchors.yaml doc into a YAML text fragment
- * ready to be prepended into a generated mihomo profile.
- *
+ * Compile a parsed group-anchors.yaml doc (flat anchors:[]) into a YAML text fragment.
  * Emits &GroupBase, &GroupUrlTest, … anchors.
+ *
+ * Anchor roles are inferred from the item itself:
+ *   - no extends + not select type → base
+ *   - has extends                  → type anchor
+ *   - no extends + type: select   → select anchor
  */
 export function compileGroupAnchors(doc: any): string {
-  const parts: string[] = []
-
-  parts.push(
+  const parts: string[] = [
     '# ── Group base + type anchors ─────────────────────────────────────────────────',
     '# GroupBase carries url/lazy/include-all/exclude-filter — inherited by all auto types.',
     '# GroupSmart (vernesong fork) does NOT extend GroupBase; smart leaf groups must emit',
     '# include-all and exclude-filter explicitly.',
-  )
+  ]
 
-  // base anchor
-  const base = doc?.base ?? {}
-  parts.push(`_g_base: &${base.name}`)
-  parts.push(..._emitFields(base.config ?? {}))
-  parts.push('')
+  const anchors: any[] = doc?.anchors ?? []
+  let typeIdx = 0
 
-  // type anchors
-  const types: any[] = doc?.types ?? []
-  types.forEach((t, i) => {
-    const dkey = _TYPE_KEYS[i] ?? `_g_type_${i}`
-    parts.push(`${dkey}: &${t.name}`)
-    parts.push(`  <<: *${t.extends}`)
-    parts.push(..._emitFields(t.config ?? {}))
+  anchors.forEach(a => {
+    const isSelect = a.config?.type === 'select'
+    const dkey = a.extends
+      ? (_G_TYPE_KEYS[typeIdx++] ?? `_g_type_${typeIdx - 1}`)
+      : isSelect ? _G_SEL_KEY : _G_BASE_KEY
+
+    parts.push(`${dkey}: &${a.name}`)
+    if (a.extends) parts.push(`  <<: *${a.extends}`)
+    parts.push(..._emitFields(a.config ?? {}))
     parts.push('')
   })
 
-  // bare select anchor
-  const sel = doc?.select
-  if (sel) {
-    parts.push(`_g_sel: &${sel.name}`)
-    parts.push(..._emitFields(sel.config ?? {}))
-  }
-
-  return parts.join('\n')
+  return parts.join('\n').trimEnd()
 }
 
 // ── rule-provider-anchors.yaml compiler ──────────────────────────────────────
