@@ -35,35 +35,37 @@ export interface FiltersData {
 /**
  * Compile a parsed filter-anchors.yaml doc into the filter data object
  * consumed by ProfileBuilder and the yaml-b64 plugin.
+ *
+ * Reads flat vars: + anchors: structure:
+ *   - anchors without label: → named string anchors (FilterInfo, FilterExclude)
+ *   - anchors with label:    → region anchors (FilterHK, FilterTW, …)
+ *     key derived from name: Filter<KEY>, pattern from vars: <lowercase-key>-pattern
  */
 export function compileFilters(doc: any): FiltersData {
   const vars: Record<string, string> = doc?.vars ?? {}
-  const infoPattern: string = vars['info-pattern'] ?? ''
-  const highMulPattern: string = vars['custom-exclude-pattern'] ?? ''
-  const filterTemplates: Record<string, string> = doc?.filters ?? {}
+  const anchors: any[] = doc?.anchors ?? []
 
-  const sharedVars = { 'info-pattern': infoPattern, 'custom-exclude-pattern': highMulPattern }
-  const filterInfo = applyTemplate(filterTemplates['info-filter'] ?? '', sharedVars)
-  const filterExclude = applyTemplate(filterTemplates['exclude-filter'] ?? '', sharedVars)
+  const namedAnchors: Record<string, string> = {}
+  const regions: RegionEntry[] = []
 
-  const regions: RegionEntry[] = (doc?.regions ?? []).map((r: any) => {
-    const excludePat: string = r['exclude-pattern'] ?? ''
-    const regionVars = {
-      'region-pattern': r.pattern ?? '',
-      'region-exclude-pattern': excludePat,
+  for (const a of anchors) {
+    const value = applyTemplate(a.value ?? '', vars)
+    namedAnchors[a.name] = value
+    if (a.label) {
+      const key = (a.name as string).replace(/^Filter/, '')
+      const pattern = vars[key.toLowerCase() + '-pattern'] ?? ''
+      regions.push({ name: a.label, key, pattern, filter: value })
     }
-    const tmplKey = excludePat ? 'region-filter-mix' : 'region-filter'
-    return {
-      name: r.name,
-      key: r.key,
-      pattern: r.pattern,
-      filter: applyTemplate(filterTemplates[tmplKey] ?? '', regionVars),
-    }
-  })
+  }
 
-  const filterShortcuts = Object.fromEntries(regions.map(r => [`Filter${r.key}`, r.filter]))
-
-  return { InfoPattern: infoPattern, FilterInfo: filterInfo, FilterExclude: filterExclude, HighMulPattern: highMulPattern, regions, ...filterShortcuts }
+  return {
+    InfoPattern: vars['info-pattern'] ?? '',
+    FilterInfo: namedAnchors['FilterInfo'] ?? '',
+    FilterExclude: namedAnchors['FilterExclude'] ?? '',
+    HighMulPattern: vars['custom-exclude-pattern'] ?? '',
+    regions,
+    ...Object.fromEntries(regions.map(r => [`Filter${r.key}`, r.filter])),
+  }
 }
 
 // ── group-anchors.yaml compiler ───────────────────────────────────────────────
