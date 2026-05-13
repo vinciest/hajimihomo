@@ -3,11 +3,50 @@
  * Pure TypeScript — no Bun/Node APIs, independently testable.
  *
  * Compiles YAML meta-schema docs from profiles/ into usable data:
- *   compileFilters(doc)      → filter/regex data from filter-anchors.yaml
- *   compileGroupAnchors(doc) → YAML text fragment from group-anchors.yaml
+ *   compileFilters(doc)              → filter/regex data from filter-anchors.yaml
+ *   compileGroupAnchors(doc)         → YAML text fragment from group-anchors.yaml
+ *   compileRuleProviderAnchors(doc)  → YAML text fragment from rule-provider-anchors.yaml
  *
- * Both use the same {{var}} substitution engine.
+ * All three anchor files share the same meta-schema shape:
+ *   - vars: (filter-anchors only) — template substitution variables
+ *   - anchors: — list of anchor definitions, each with:
+ *       name:    anchor name (meta — not emitted as a field)
+ *       value:   string anchor content  (filter-anchors)
+ *       object:  mapping anchor content (group-anchors, rule-provider-anchors)
+ *       extends: parent anchor for <<: merge key (group-anchors only)
+ *       label:   display name (filter-anchors region anchors only)
  */
+
+// ── Anchor meta-schema types ──────────────────────────────────────────────────
+
+/** A string-valued anchor (filter-anchors.yaml) */
+export interface StringAnchorDef {
+  name: string
+  value: string
+  label?: string  // present on region anchors; marks them as region entries
+}
+
+/** A mapping-valued anchor (group-anchors.yaml, rule-provider-anchors.yaml) */
+export interface MappingAnchorDef {
+  name: string
+  object: Record<string, unknown>
+  extends?: string
+}
+
+export interface FilterAnchorsDoc {
+  vars: Record<string, string>
+  anchors: StringAnchorDef[]
+}
+
+export interface GroupAnchorsDoc {
+  anchors: MappingAnchorDef[]
+}
+
+export interface RuleProviderAnchorsDoc {
+  anchors: MappingAnchorDef[]
+}
+
+// ── Template engine ───────────────────────────────────────────────────────────
 
 /** Replace all {{varName}} tokens with values from vars map. */
 export function applyTemplate(template: string, vars: Record<string, string>): string {
@@ -84,7 +123,7 @@ function _resolveVal(v: unknown): string {
   return String(v)
 }
 
-/** Emit YAML field lines for a `config:` object (all keys, no skip list needed). */
+/** Emit YAML field lines for an `object:` mapping (all keys, no skip list needed). */
 function _emitFields(fields: Record<string, unknown>): string[] {
   return Object.entries(fields).map(([k, v]) => `  ${k}: ${_resolveVal(v)}`)
 }
@@ -110,14 +149,14 @@ export function compileGroupAnchors(doc: any): string {
   let typeIdx = 0
 
   anchors.forEach(a => {
-    const isSelect = a.config?.type === 'select'
+    const isSelect = a.object?.type === 'select'
     const dkey = a.extends
       ? (_G_TYPE_KEYS[typeIdx++] ?? `_g_type_${typeIdx - 1}`)
       : isSelect ? _G_SEL_KEY : _G_BASE_KEY
 
     parts.push(`${dkey}: &${a.name}`)
     if (a.extends) parts.push(`  <<: *${a.extends}`)
-    parts.push(..._emitFields(a.config ?? {}))
+    parts.push(..._emitFields(a.object ?? {}))
     parts.push('')
   })
 
@@ -143,7 +182,7 @@ export function compileRuleProviderAnchors(doc: any): string {
   const anchors: any[] = doc?.anchors ?? []
   anchors.forEach(a => {
     parts.push(`${_ruleProviderKey(a.name)}: &${a.name}`)
-    parts.push(..._emitFields(a.config ?? {}))
+    parts.push(..._emitFields(a.object ?? {}))
     parts.push('')
   })
   return parts.join('\n').trimEnd()
