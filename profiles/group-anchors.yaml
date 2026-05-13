@@ -5,7 +5,7 @@
 # Structure:
 #   name:     anchor name (e.g. GroupBase) — meta, not emitted as a field
 #   extends:  parent anchor for <<: *<Name> merge key — meta, not emitted as a field
-#   fields:   actual Clash config fields emitted verbatim
+#   config:   actual Clash config fields emitted verbatim
 #
 # Template vars in fields values:
 #   {{HealthUrl}}     → emitted as *HealthUrl     (YAML anchor reference)
@@ -25,7 +25,7 @@
 
 base:
   name: GroupBase
-  fields:
+  config:
     url: '{{HealthUrl}}'
     lazy: true
     include-all: true
@@ -34,21 +34,21 @@ base:
 types:
   - name: GroupUrlTest
     extends: GroupBase
-    fields:
+    config:
       type: url-test
       interval: 180
       tolerance: 50
 
   - name: GroupFallback
     extends: GroupBase
-    fields:
+    config:
       type: fallback
       interval: 300
       tolerance: 100
 
   - name: GroupLBHash
     extends: GroupBase
-    fields:
+    config:
       type: load-balance
       strategy: consistent-hashing
       interval: 300
@@ -56,7 +56,7 @@ types:
 
   - name: GroupLBRobin
     extends: GroupBase
-    fields:
+    config:
       type: load-balance
       strategy: round-robin
       interval: 300
@@ -64,5 +64,5 @@ types:
 
 select:
   name: GroupSelect
-  fields:
+  config:
     type: select

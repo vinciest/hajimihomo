@@ -78,7 +78,7 @@ function _resolveVal(v: unknown): string {
   return String(v)
 }
 
-/** Emit YAML field lines for a `fields:` object (all keys, no skip list needed). */
+/** Emit YAML field lines for a `config:` object (all keys, no skip list needed). */
 function _emitFields(fields: Record<string, unknown>): string[] {
   return Object.entries(fields).map(([k, v]) => `  ${k}: ${_resolveVal(v)}`)
 }
@@ -102,7 +102,7 @@ export function compileGroupAnchors(doc: any): string {
   // base anchor
   const base = doc?.base ?? {}
   parts.push(`_g_base: &${base.name}`)
-  parts.push(..._emitFields(base.fields ?? {}))
+  parts.push(..._emitFields(base.config ?? {}))
   parts.push('')
 
   // type anchors
@@ -111,7 +111,7 @@ export function compileGroupAnchors(doc: any): string {
     const dkey = _TYPE_KEYS[i] ?? `_g_type_${i}`
     parts.push(`${dkey}: &${t.name}`)
     parts.push(`  <<: *${t.extends}`)
-    parts.push(..._emitFields(t.fields ?? {}))
+    parts.push(..._emitFields(t.config ?? {}))
     parts.push('')
   })
 
@@ -119,7 +119,7 @@ export function compileGroupAnchors(doc: any): string {
   const sel = doc?.select
   if (sel) {
     parts.push(`_g_sel: &${sel.name}`)
-    parts.push(..._emitFields(sel.fields ?? {}))
+    parts.push(..._emitFields(sel.config ?? {}))
   }
 
   return parts.join('\n')
