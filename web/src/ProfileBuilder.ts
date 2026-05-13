@@ -21,8 +21,8 @@ import _dnsB64                    from '../../profiles/defaults/dns.yaml'
 import _snifferB64                from '../../profiles/defaults/sniffer.yaml'
 import _tunB64                    from '../../profiles/defaults/tun.yaml'
 import _ruleProviderAnchorsB64    from '../../profiles/defaults/rule-provider-anchors.yaml'
-import _proxyGroupStrategyB64     from '../../profiles/defaults/proxy-group-strategy-anchors.yaml'
-import filtersData                from '../../profiles/filters.yaml'
+import _proxyGroupStrategyB64     from '../../profiles/group-anchors.yaml'
+import filtersData                from '../../profiles/filter-anchors.yaml'
 import {
   CDN_BASE, RELEASES_BASE, RULESETS_URL,
   SPLIT_ORDER, SPLIT_BEHAVIOR,
@@ -48,7 +48,7 @@ const _proxyGroupStrategyAnchors = () => _decode(_proxyGroupStrategyB64)
 
 const _eta = new Eta({ autoEscape: false, autoTrim: false })
 
-// Lookup map from region key → filters.yaml region entry (pattern + filter)
+// Lookup map from region key → filter-anchors.yaml region entry (pattern + filter)
 const _filtersByKey = new Map(filtersData.regions.map(r => [r.key, r]))
 
 /**
@@ -215,8 +215,7 @@ export function buildMihomoGroups(subUrls: string[], groupIds: string[], catalog
 function _slug2(gid) { return gid.replace(/\//g, '-') }
 function _autoType(target) { return target === 'mihomo-smart' ? 'smart' : 'url-test' }
 function _regionFilter(pattern, exclude) {
-  const parts = [filtersData.HighMulPattern, exclude].filter(Boolean)
-  const neg = parts.length ? `(?!.*(?:${parts.join('|')}))` : ''
+  const neg = exclude ? `(?!.*(${exclude}))` : ''
   return `^(?=.*(?i)(${pattern}))${neg}.*$`
 }
 
@@ -232,7 +231,7 @@ function _serviceIconUrl(gid) {
 
 /** Filter regex WITHOUT user regionExcludes — for anchor block definitions. */
 function _regionFilterValue(pattern) {
-  return `^(?=.*(?i)(${pattern}))(?!.*(?:${filtersData.HighMulPattern})).*$`
+  return `^(?=.*(?i)(${pattern})).*$`
 }
 
 /** Build eta template context for proxy-group-anchors.yaml.eta. */
@@ -242,6 +241,7 @@ function _proxyGroupAnchorCtx(topology, target) {
     : ['高速', '可用']
   return {
     filterInfo: filtersData.FilterInfo,
+    filterExclude: filtersData.FilterExclude,
     regexHighMul: filtersData.HighMulPattern,
     smart: target === 'mihomo-smart',
     regions: topology === 'global' ? [] : _REGIONS.map(r => {
@@ -298,7 +298,7 @@ function _buildProxyGroups(groupIds, { topology, target, features, regionExclude
       name: 'Proxy', type: 'select',
       proxies: strategyNames,
       'include-all': true,
-      'exclude-filter': '*FilterInfo',
+      'exclude-filter': '*FilterExclude',
       icon: `${ORZ3_BASE}/Vpn.png`,
     })
   }
@@ -384,7 +384,7 @@ function _buildProxyGroups(groupIds, { topology, target, features, regionExclude
         proxies: leafNames,
         'include-all': true,
         filter,
-        'exclude-filter': '*FilterInfo',
+        'exclude-filter': '*FilterExclude',
       }
       if (REGION_ICONS[r.name]) strat.icon = `${ICON_BASE}/${REGION_ICONS[r.name]}`
       groups.push(strat)
@@ -394,7 +394,7 @@ function _buildProxyGroups(groupIds, { topology, target, features, regionExclude
     const anchorForAutoType = autoType === 'smart' ? 'GroupSmart' : 'GroupUrlTest'
     // Smart leaf groups need explicit include-all/exclude-filter (GroupSmart doesn't extend GroupBase)
     const smartExtra = autoType === 'smart'
-      ? { 'include-all': true, 'exclude-filter': '*FilterInfo' }
+      ? { 'include-all': true, 'exclude-filter': '*FilterExclude' }
       : {}
 
     for (const r of _REGIONS) {
@@ -413,7 +413,7 @@ function _buildProxyGroups(groupIds, { topology, target, features, regionExclude
   {
     const anchorForAutoType = autoType === 'smart' ? 'GroupSmart' : 'GroupUrlTest'
     const smartExtra = autoType === 'smart'
-      ? { 'include-all': true, 'exclude-filter': '*FilterInfo' }
+      ? { 'include-all': true, 'exclude-filter': '*FilterExclude' }
       : {}
     groups.push({ name: '全部', _anchorRef: anchorForAutoType, hidden: true, ...smartExtra })
   }

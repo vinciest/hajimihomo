@@ -1,4 +1,4 @@
-# profiles/filters.yaml
+# profiles/filter-anchors.yaml
 # Source of truth for ALL regex patterns used in generated mihomo profiles.
 # Imported by ProfileBuilder via yaml-b64 plugin (profiles/*.yaml handler).
 # Edit here — do not duplicate these values in other files.
@@ -48,12 +48,12 @@ patterns:
     - name: 美国
       key: US
       pattern: '美|美国|🇺🇸|US|USA|United ?States|SJC|JFK|LAX|ORD|ATL|DFW|SFO|MIA|SEA|IAD|波特兰|达拉斯|俄勒冈|凤凰城|费利蒙|硅谷|拉斯维加斯|洛杉矶|旧金山|圣何塞|圣克拉拉|西雅图|芝加哥'
-      exlucde_pattern: '亚美尼亚'
+      exclude_pattern: '亚美尼亚'
 
     - name: 日本
       key: JP
       pattern: '日|日本|🇯🇵|JP|JPN|Japan|NRT|HND|KIX|CTS|FUK|东京|大阪|泉日|埼玉'
-      exlucde_pattern: '尼日利亚'
+      exclude_pattern: '尼日利亚'
 
     - name: 韩国
       key: KR

@@ -1,5 +1,6 @@
 # ── Regex anchors ─────────────────────────────────────────────────────────────
 _r_info: &FilterInfo '<%= it.filterInfo %>'
+_r_exclude: &FilterExclude '<%= it.filterExclude %>'
 _r_highmul: &RegexHighMul '<%= it.regexHighMul %>'
 <% if (it.regions.length > 0) { %>
 # ── Region filter anchors ─────────────────────────────────────────────────────
@@ -20,7 +21,7 @@ _g_sel_<%= r.key.toLowerCase() %>: &GroupSelect<%= r.key %>
   type: select
   include-all: true
   filter: *Filter<%= r.key %>
-  exclude-filter: *FilterInfo
+  exclude-filter: *FilterExclude
   proxies: [<%= r.proxies.join(', ') %>]
 <% } -%>
 
