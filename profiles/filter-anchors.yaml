@@ -1,67 +1,60 @@
 # profiles/filter-anchors.yaml
 # Source of truth for ALL regex patterns used in generated mihomo profiles.
-# Imported by ProfileBuilder via yaml-b64 plugin (profiles/*.yaml handler).
-# Edit here — do not duplicate these values in other files.
+# Compiled by anchor-builder.ts via yaml-b64 plugin — edit here, never duplicate elsewhere.
 #
-# § How values are used in generated profiles:
-#   InfoPattern    → inner alternation embedded in &FilterInfo anchor value
-#   FilterInfo     → &FilterInfo anchor (filter: on 通知公告; exclude-filter: on every leaf group)
-#   HighMulPattern → inner alternation embedded in each FilterXX negative lookahead;
-#                    also emitted as &RegexHighMul anchor (documentation — cannot be used as
-#                    a second exclude-filter: since mihomo supports only one per group)
-#   regions[].pattern → inner alternation used when building dynamic filters (regionExcludes)
-#   regions[].filter  → &FilterHK / &FilterTW / … anchor values
+# § How values flow to generated profiles:
+#   info-pattern           → &FilterInfo  (filter: on 通知公告)
+#   info + custom-exclude  → &FilterExclude  (exclude-filter: on every proxy leaf group)
+#   regions[].pattern      → &FilterHK / &FilterTW / … anchor values
+#   regions[].exclude-pattern (optional) → negative lookahead mixed into that region's filter
 
-# Inner alternation for subscription-info / announcement nodes.
-# Plugin wraps this as: ^(?=.*(<InfoPattern>)).*$  → FilterInfo
+# Shared raw alternation strings — composed into filters below.
 patterns:
-  # positive match for subscription-info/announcement nodes.
+  # Positive match for subscription-info / announcement nodes.
+  # anchor-builder wraps this as: ^(?=.*(<info-pattern>)).*$ → &FilterInfo
   info-pattern: '群|邀请|返利|循环|官网|网站|网址|获取|订阅|流量|到期|机场|下次|版本|官址|备用|过期|已用|联系|客服|邮箱|工单|贩卖|通知|倒卖|防止|国内|地址|频道|无法|说明|使用|提示|访问|支持|教程|关注|更新|作者|加入|(?i)USE|USED|TOTAL|EXPIRE|EMAIL|Panel|Channel|Author|Traffic'
 
-  # Inner alternation for high-multiplier / access-restricted nodes.
-  # Embedded as negative lookahead in each region FilterXX.
+  # Positive match for high-multiplier / access-restricted nodes.
+  # Combined with info-pattern → &FilterExclude (the single exclude-filter: per group).
   custom-exclude-pattern: 'X5|5x|X10|10x|DirectAccess|移动网络|禁止下载|禁止视频'
 
-  # Region filter definitions.
-  # Order here is the canonical region order used throughout the generated profile
-  # (group names, proxy lists, strategy group ordering, etc.).
-  #
-  # Fields:
-  #   name:    Chinese display name — used in group names (e.g. "香港高速", "香港策略")
-  #   key:     2-letter code — Filter<key> is the YAML anchor name (e.g. FilterHK)
-  #   pattern: inner case-insensitive alternation for positive lookahead
-  #   filter:  full compiled regex — value of &Filter<key> anchor in generated profiles
+# Region definitions — canonical order determines group ordering throughout the profile.
+#
+# Fields:
+#   name:            Chinese display name — used in generated group labels
+#   key:             2-letter code — &Filter<key> is the anchor name (e.g. &FilterHK)
+#   pattern:         inner case-insensitive alternation for positive lookahead
+#   exclude-pattern: (optional) extra negative lookahead mixed into this region's filter only
+regions:
+  - name: 香港
+    key: HK
+    pattern: '港|香港|🇭🇰|HK|HKG|Hong ?Kong'
 
-  regions:
-    - name: 香港
-      key: HK
-      pattern: '港|香港|🇭🇰|HK|HKG|Hong ?Kong'
+  - name: 台湾
+    key: TW
+    pattern: '台|台湾|🇹🇼|TW|TWN|Taiwan|TPE|TSA|KHH'
 
-    - name: 台湾
-      key: TW
-      pattern: '台|台湾|🇹🇼|TW|TWN|Taiwan|TPE|TSA|KHH'
+  - name: 狮城
+    key: SG
+    pattern: '坡|狮城|🇸🇬|SG|SGP|Singapore|SIN|XSP|新加坡'
 
-    - name: 狮城
-      key: SG
-      pattern: '坡|狮城|🇸🇬|SG|SGP|Singapore|SIN|XSP|新加坡'
+  - name: 美国
+    key: US
+    pattern: '美|美国|🇺🇸|US|USA|United ?States|SJC|JFK|LAX|ORD|ATL|DFW|SFO|MIA|SEA|IAD|波特兰|达拉斯|俄勒冈|凤凰城|费利蒙|硅谷|拉斯维加斯|洛杉矶|旧金山|圣何塞|圣克拉拉|西雅图|芝加哥'
+    exclude-pattern: '亚美尼亚'
 
-    - name: 美国
-      key: US
-      pattern: '美|美国|🇺🇸|US|USA|United ?States|SJC|JFK|LAX|ORD|ATL|DFW|SFO|MIA|SEA|IAD|波特兰|达拉斯|俄勒冈|凤凰城|费利蒙|硅谷|拉斯维加斯|洛杉矶|旧金山|圣何塞|圣克拉拉|西雅图|芝加哥'
-      exclude_pattern: '亚美尼亚'
+  - name: 日本
+    key: JP
+    pattern: '日|日本|🇯🇵|JP|JPN|Japan|NRT|HND|KIX|CTS|FUK|东京|大阪|泉日|埼玉'
+    exclude-pattern: '尼日利亚'
 
-    - name: 日本
-      key: JP
-      pattern: '日|日本|🇯🇵|JP|JPN|Japan|NRT|HND|KIX|CTS|FUK|东京|大阪|泉日|埼玉'
-      exclude_pattern: '尼日利亚'
+  - name: 韩国
+    key: KR
+    pattern: '韩|韩国|🇰🇷|KR|KOR|Korea|南朝鲜|首尔'
 
-    - name: 韩国
-      key: KR
-      pattern: '韩|韩国|🇰🇷|KR|KOR|Korea|南朝鲜|首尔'
-
-    - name: 欧盟
-      key: EU
-      pattern: '奥|比|保|克罗地亚|塞|捷|丹|爱沙|芬|法|德|希|匈|爱|意|拉|立|卢|马|荷|波|葡|罗|西|瑞典|英|🇩🇪|🇫🇷|🇬🇧|🇳🇱|🇸🇪|CDG|FRA|AMS|LHR|MUC'
+  - name: 欧盟
+    key: EU
+    pattern: '奥|比|保|克罗地亚|塞|捷|丹|爱沙|芬|法|德|希|匈|爱|意|拉|立|卢|马|荷|波|葡|罗|西|瑞典|英|🇩🇪|🇫🇷|🇬🇧|🇳🇱|🇸🇪|CDG|FRA|AMS|LHR|MUC'
 
 # simple mustache template -> compound regex filter anchors
 filters:

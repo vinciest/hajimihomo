@@ -45,12 +45,13 @@ export function compileFilters(doc: any): FiltersData {
   const filterInfo = applyTemplate(filterTemplates['info-filter'] ?? '', sharedVars)
   const filterExclude = applyTemplate(filterTemplates['exclude-filter'] ?? '', sharedVars)
 
-  const regions: RegionEntry[] = (doc?.patterns?.regions ?? []).map((r: any) => {
+  const regions: RegionEntry[] = (doc?.regions ?? []).map((r: any) => {
+    const excludePat: string = r['exclude-pattern'] ?? ''
     const regionVars = {
       'region-pattern': r.pattern ?? '',
-      'region-exclude-pattern': r.exclude_pattern ?? '',
+      'region-exclude-pattern': excludePat,
     }
-    const tmplKey = r.exclude_pattern ? 'region-filter-mix' : 'region-filter'
+    const tmplKey = excludePat ? 'region-filter-mix' : 'region-filter'
     return {
       name: r.name,
       key: r.key,
