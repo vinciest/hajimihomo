@@ -1,6 +1,9 @@
 // @ts-nocheck
 /**
- * Bun plugin: handles YAML imports from profiles/ in three ways:
+ * Bun plugin: handles YAML imports from profiles/ in four ways:
+ *
+ * 0. profiles/global-settings.yaml → compileGlobalSettings() → JS object export
+ *    { health_url, info_pattern, custom_exclude_pattern }
  *
  * 1. profiles/filter-anchors.yaml → compileFilters() → JS object export
  *    { InfoPattern, FilterInfo, FilterExclude, HighMulPattern, regions, FilterHK, … }
@@ -13,8 +16,9 @@
  * Only .yaml files are affected (.yaml.eta uses the text loader unchanged).
  */
 import { load as parseYaml } from 'js-yaml'
-import { compileFilters, compileGroupAnchors, compileRuleProviderAnchors } from '../anchor-builder'
+import { compileGlobalSettings, compileFilters, compileGroupAnchors, compileRuleProviderAnchors } from '../anchor-builder'
 
+const GLOBAL_SETTINGS_FILTER    = /profiles\/global-settings\.yaml$/
 const FILTERS_FILTER           = /profiles\/filter-anchors\.yaml$/
 const GROUP_ANCHORS_FILTER     = /profiles\/group-anchors\.yaml$/
 const RULE_PROVIDER_FILTER     = /profiles\/rule-provider-anchors\.yaml$/
@@ -24,10 +28,24 @@ const DEFAULTS_FILTER          = /profiles\/defaults\/[^/]+\.yaml$/
 export const yamlB64Plugin = {
   name: 'yaml-b64',
   setup(build: any) {
-    // filter-anchors.yaml: compile and emit as JS object export
+    // global-settings.yaml: compile and emit as JS object export
+    // Must load before filter-anchors so globalVars are available.
+    let _globalVars: Record<string, string> | undefined
+    build.onLoad({ filter: GLOBAL_SETTINGS_FILTER }, async ({ path }: { path: string }) => {
+      const doc = parseYaml(await Bun.file(path).text())
+      const out = compileGlobalSettings(doc)
+      _globalVars = {
+        'info-pattern':           out.info_pattern,
+        'custom-exclude-pattern': out.custom_exclude_pattern,
+        'HealthUrl':              out.health_url,
+      }
+      return { contents: `export default ${JSON.stringify(out)}`, loader: 'js' }
+    })
+
+    // filter-anchors.yaml: compile and emit as JS object export (global vars merged)
     build.onLoad({ filter: FILTERS_FILTER }, async ({ path }: { path: string }) => {
       const doc = parseYaml(await Bun.file(path).text())
-      const out = compileFilters(doc)
+      const out = compileFilters(doc, _globalVars)
       return { contents: `export default ${JSON.stringify(out)}`, loader: 'js' }
     })
 
@@ -61,4 +79,3 @@ export const yamlB64Plugin = {
     })
   },
 }
-

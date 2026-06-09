@@ -3,6 +3,7 @@
  * Pure TypeScript — no Bun/Node APIs, independently testable.
  *
  * Compiles YAML meta-schema docs from profiles/ into usable data:
+ *   compileGlobalSettings(doc)     → shared constants from global-settings.yaml
  *   compileFilters(doc)              → filter/regex data from filter-anchors.yaml
  *   compileGroupAnchors(doc)         → YAML text fragment from group-anchors.yaml
  *   compileRuleProviderAnchors(doc)  → YAML text fragment from rule-provider-anchors.yaml
@@ -18,6 +19,13 @@
  */
 
 // ── Anchor meta-schema types ──────────────────────────────────────────────────
+
+/** Global settings from profiles/global-settings.yaml */
+export interface GlobalSettings {
+  health_url: string
+  info_pattern: string
+  custom_exclude_pattern: string
+}
 
 /** A string-valued anchor (filter-anchors.yaml) */
 export interface StringAnchorDef {
@@ -53,6 +61,20 @@ export function applyTemplate(template: string, vars: Record<string, string>): s
   return template.replace(/\{\{([^}]+)\}\}/g, (_, key) => vars[key.trim()] ?? '')
 }
 
+// ── global-settings.yaml compiler ─────────────────────────────────────────────
+
+/**
+ * Compile a parsed global-settings.yaml doc into a GlobalSettings object.
+ * Pass-through — exists so the plugin pipeline has a single compile entry point.
+ */
+export function compileGlobalSettings(doc: any): GlobalSettings {
+  return {
+    health_url:             doc?.health_url ?? "https://cp.cloudflare.com/generate_204",
+    info_pattern:           doc?.info_pattern ?? "",
+    custom_exclude_pattern: doc?.custom_exclude_pattern ?? "",
+  }
+}
+
 // ── filter-anchors.yaml compiler ─────────────────────────────────────────────
 
 export interface RegionEntry {
@@ -76,13 +98,18 @@ export interface FiltersData {
  * Compile a parsed filter-anchors.yaml doc into the filter data object
  * consumed by ProfileBuilder and the yaml-b64 plugin.
  *
- * Reads flat vars: + anchors: structure:
+ * Reads flat vars: + anchors: structure. Extra vars from global-settings.yaml
+ * are merged in (via the globalVars parameter) before template resolution,
+ * so {{info-pattern}} and {{custom-exclude-pattern}} are available even though
+ * they now live in global-settings.yaml rather than local vars:.
+ *
  *   - anchors without label: → named string anchors (FilterInfo, FilterExclude)
  *   - anchors with label:    → region anchors (FilterHK, FilterTW, …)
  *     key derived from name: Filter<KEY>, pattern from vars: <lowercase-key>-pattern
  */
-export function compileFilters(doc: any): FiltersData {
-  const vars: Record<string, string> = doc?.vars ?? {}
+export function compileFilters(doc: any, globalVars?: Record<string, string>): FiltersData {
+  const localVars: Record<string, string> = doc?.vars ?? {}
+  const vars = { ...globalVars, ...localVars }   // local overrides global (future-proof)
   const anchors: any[] = doc?.anchors ?? []
 
   const namedAnchors: Record<string, string> = {}

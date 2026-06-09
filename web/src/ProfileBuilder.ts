@@ -24,6 +24,7 @@ import _ruleProviderAnchorsB64    from '../../profiles/rule-provider-anchors.yam
 import _proxyGroupStrategyB64     from '../../profiles/group-anchors.yaml'
 import filtersData                from '../../profiles/filter-anchors.yaml'
 import serviceGroupsData          from '../../profiles/service-groups.yaml'
+import globalSettingsData          from '../../profiles/global-settings.yaml'
 import {
   CDN_BASE, RELEASES_BASE, RULESETS_URL,
   SPLIT_ORDER, SPLIT_BEHAVIOR,
@@ -537,6 +538,7 @@ function _buildRules2(groupIds, catalog, effectiveMap, features, format = 'yaml-
 function _renderProxyProviders(subUrls) {
   const anchorText = _tmpl(proxyProviderAnchorsTmpl, {
     infoPattern: filtersData.InfoPattern,
+    healthUrl: globalSettingsData.health_url,
   })
   if (!subUrls.length) {
     return (

@@ -1,6 +1,7 @@
 # ── proxy provider anchor ─────────────────────────────────────────────────────
 # Edit here to update all proxy-providers at once (interval, health-check, filter).
-_h: &HealthUrl 'https://cp.cloudflare.com/generate_204'
+# health_url is sourced from global-settings.yaml; edit it there.
+_h: &HealthUrl '<%= it.healthUrl %>'
 _pp: &ProxyProvider
   type: http
   interval: 86400

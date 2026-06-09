@@ -16,8 +16,6 @@
 #   (group names, strategy group ordering, etc.).
 
 vars:
-  info-pattern: '群|邀请|返利|循环|官网|网站|网址|获取|订阅|流量|到期|机场|下次|版本|官址|备用|过期|已用|联系|客服|邮箱|工单|贩卖|通知|倒卖|防止|国内|地址|频道|无法|说明|使用|提示|访问|支持|教程|关注|更新|作者|加入|(?i)USE|USED|TOTAL|EXPIRE|EMAIL|Panel|Channel|Author|Traffic'
-  custom-exclude-pattern: 'X5|5x|X10|10x|DirectAccess|移动网络|禁止下载|禁止视频'
 
   hk-pattern: '港|香港|🇭🇰|HK|HKG|Hong ?Kong'
   tw-pattern: '台|台湾|🇹🇼|TW|TWN|Taiwan|TPE|TSA|KHH'
