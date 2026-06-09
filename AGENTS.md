@@ -5,7 +5,7 @@
 **hajimihomo** is a mihomo/Clash Meta ruleset build system. It aggregates proxy routing rules from multiple upstream sources (primarily [blackmatrix7/ios_rule_script](https://github.com/blackmatrix7/ios_rule_script)), resolves them into clean rule sets, and publishes them to CDN branches for use in proxy clients.
 
 Two deliverables:
-1. **Rule sets** — built by `scripts/build.py`, published to `dist/` and CDN branches. Each group produces multiple output files per format tier (see [Source Structure](#source-structure)).
+1. **Rule sets** — built by `scripts/build.py`, published to `dist/` and CDN branches. Each group produces multiple output files per format tier.
 2. **Interactive profile builder** — a static web app (`web/`) deployed to GitHub Pages that lets users generate complete, standalone mihomo config files.
 
 **Key technologies:** Python 3 · PyYAML · Bun · TypeScript · Preact · DaisyUI · eta · GitHub Actions · jsDelivr CDN
@@ -20,27 +20,13 @@ Two deliverables:
 
 ## Setup
 
-### Python (rule builder)
-
 ```bash
-pip install pyyaml   # system Python 3.12+, only dep needed
+pip install pyyaml              # Python 3.12+, only dep needed
+make web-install                # cd web && bun install (Bun >= 1.x)
+make vendor-sync                # clone/update upstream repos into vendor/ (gitignored)
 ```
 
-### Bun (web profile builder + CLI)
-
-```bash
-make web-install   # cd web && bun install
-```
-
-Requires [Bun](https://bun.sh) ≥ 1.x.
-
-### Vendor repos
-
-```bash
-make vendor-sync   # clone/update all upstream repos referenced by repo: sources
-```
-
-Vendor repos are cloned into `vendor/` (gitignored). Required for source extraction and coverage analysis, but not for building (build fetches sources directly via HTTP).
+Vendor repos are required for source extraction and coverage analysis, but not for building (build fetches sources via HTTP).
 
 ---
 
@@ -51,67 +37,26 @@ source/
   categories.yaml   # 664 leaf categories — each maps to upstream rule sources
   catalog.yaml      # 24 policy groups — semantic bundles of leaf categories
   overrides/        # local override lists (override: prefix = replace source entirely)
-  hosts/
-    polluted.yaml   # DNS-polluted domains for hosts block generation
-    overrides.yaml  # manually pinned IPs (take priority over DoH results)
+  hosts/            # DNS pollution data for hosts block generation
 
 profiles/
   presets/          # 1-mini / 2-lite / 3-standard / 4-full preset definitions (YAML)
-  defaults/         # editable config section files — imported as text by ProfileBuilder
-    core.yaml.eta           # eta template: core kernel keys (dashboard/smart conditionals)
-    geodata.yaml.eta        # eta template: geox-url block (4 URL variables)
-    profile.yaml.eta        # eta template: profile section (smart-collector-size conditional)
-    dns.yaml                # static DNS section
-    sniffer.yaml            # static sniffer section
-    tun.yaml                # static TUN section (enable: false; included only when tun feature is on)
-    rule-provider-anchors.yaml     # &RuleProviderDomain / &RuleProviderIPCIDR / etc.
-    proxy-provider-anchors.yaml    # &ProxyProvider anchor (type, interval, health-check, filter)
-    proxy-group-anchors.yaml       # &GroupSelect / &GroupUrlTest / &GroupFallback / etc.
-    proxy-group-anchors-smart.yaml # &GroupSmart anchor (vernesong fork only)
-    singbox.json                   # sing-box base config (future wiring)
+  defaults/         # config section files — static YAML and eta templates
+
+web/src/
+  ProfileBuilder.ts       # core generation engine — pure browser-safe TS, no Node APIs
+  catalog.ts              # data layer: presets, group index, lazy categories loader
+  App.tsx                 # root Preact component
+  components/             # UI components (Preact + DaisyUI)
+  ProfileBuilder.test.ts  # regression tests (bun test)
 
 scripts/
   build.py              # main rule-set builder
   validate.py           # source YAML validation
   extract_sources.py    # re-extracts sources from blackmatrix7 vendor
-  build_hosts.py        # DoH cross-validation hosts block builder
-  vendor_sync.py        # vendor repo cloner/updater
-  stats.py              # build stats and diff report
-
-web/
-  src/
-    ProfileBuilder.ts       # core generation engine — pure browser-safe TS, no Node APIs
-    generator-exports.ts    # browser ESM entry point → dist/generator.js
-    catalog.ts              # data layer: presets, group index, lazy categories loader
-    types.ts                # shared TypeScript interfaces
-    App.tsx                 # root Preact component
-    components/             # UI components (Preact + DaisyUI)
-    yaml.d.ts               # TypeScript declaration for *.yaml text imports
-    generator.d.ts          # TypeScript declaration for 'hajimihomo-generator' importmap module
-    ProfileBuilder.test.ts  # regression tests (bun test)
-    input.css               # Tailwind + DaisyUI entry
-    styles.css              # compiled CSS (gitignored, generated by tailwindcss)
-  data-transforms.ts    # pure transform fns (catalog/presets/categories YAML → compact JSON)
-  gen-data.ts           # generates dist/categories-index.json (runtime asset only)
-  cli.ts                # Bun CLI entry — uses Node APIs (fs, path, readline)
-  hosts.ts              # DoH host resolution (CLI only)
-  build.ts              # Bun build script → web/dist/ (has Bun YAML plugin)
-  dev.ts                # Bun dev server (port 5173)
-  package.json          # runtime deps: preact, eta, @dnd-kit/*, @tanstack/react-virtual
-                        # devDeps: daisyui, js-yaml, @tailwindcss/cli
 ```
 
-### What `web/dist/` contains (published to gh-pages)
-
-| File | Size (minified) | Notes |
-|------|-----------------|-------|
-| `index.html` | ~0.5KB | includes importmap for generator.js |
-| `chunk-*.js` | ~98KB | Preact UI + catalog data (presets + group index bundled) |
-| `generator.js` | ~34KB | ProfileBuilder + eta — browser ESM, loaded lazily on Generate |
-| `chunk-*.css` | ~107KB | Tailwind + DaisyUI |
-| `categories-index.json` | ~28KB | fetched only when Advanced Mode opens |
-
-Total wire cost on first load: ~58KB gzipped (app + CSS; generator.js preloaded in background).
+Full source tree, field schemas, dist output tiers, and profile builder UI reference: [docs/source-config.md](docs/source-config.md).
 
 ---
 
@@ -125,26 +70,11 @@ make build-groups                    # catalog groups only (skips 664 atomics)
 make build-groups GROUPS=proxy/telegram,block/ads   # specific groups only
 make build-dry                       # dry-run: validate graph, no file output
 make validate                        # validate source/categories.yaml + catalog.yaml
+make extract                         # re-extract sources from bm7 vendor
+make extract-check                   # check coverage gaps vs bm7 without writing
 ```
 
-Output lands in `dist/mihomo/` and `dist/singbox/`.
-
-**Dist output format tiers** — for each catalog group, `build.py` emits:
-
-| File | Behavior | Content | Used for |
-|------|----------|---------|---------|
-| `<slug>.yaml` | classical | All rule types | Tier 1: broadest compat, one file |
-| `<slug>.domain.yaml` | domain | DOMAIN + DOMAIN-SUFFIX only | Tier 2 split |
-| `<slug>.ip.yaml` | ipcidr | IP-CIDR (with no-resolve) | Tier 2 split |
-| `<slug>.ip-resolve.yaml` | ipcidr | IP-CIDR (without no-resolve) | Tier 2: load LAST globally |
-| `<slug>.residual.yaml` | classical | DOMAIN-KEYWORD, DOMAIN-REGEX, IP-ASN | Tier 2 split |
-| `<slug>.process.yaml` | classical | PROCESS-NAME only | Tier 2 split |
-
-Binary versions (`.mrs` for mihomo, `.srs` for sing-box) are compiled by CI and published to GitHub Releases (`release` branch). Do NOT mix Tier-1 and Tier-2 files for the same group — rules would evaluate twice.
-
-`rulesets.json` (published to `ruleset/mihomo/` branch) is the inventory of all available split files, keyed by group slug. The web profile builder fetches this at runtime to know which splits exist.
-
-### Profile builder (web — primary)
+### Profile builder (web)
 
 ```bash
 make dev            # Bun dev server at http://localhost:5173 (uses CDN rulesets)
@@ -153,25 +83,14 @@ make web-build      # production build → web/dist/
 cd web && bun test  # run ProfileBuilder regression tests
 ```
 
-The dev server hot-reloads on JS/HTML changes. `RULESET_DIR=../dist` env var (set by `make dev-local`) makes the server proxy ruleset requests to local build output.
-
 ### Profile builder (CLI)
 
 ```bash
 make profile                         # builds standard preset → dist/profiles/standard.yaml
 make profile PRESET=full             # specific preset (mini|lite|standard|full)
-./bin/hajimihomo --preset mini       # compiled binary (make cli-build first)
-./bin/hajimihomo --sub https://airport.com/sub?token=xxx  # one-off with subscription URL
-```
-
-On first run without `profiles/user.yaml`, an interactive wizard collects subscription URLs and optionally saves `profiles/user.yaml`. Subsequent runs load the file silently.
-
-### Generator artifacts
-
-```bash
-make generator       # builds dist/generator.js (browser ESM) via web/build.ts
-make generator-cli   # builds dist/generator-cli.js (Bun CLI bundle)
-make cli-build       # compiles bin/hajimihomo (self-contained binary)
+make cli-build                       # compile Bun binary → bin/hajimihomo
+make generator                       # build dist/generator.js (browser ESM)
+make generator-cli                   # build dist/generator-cli.js (Bun CLI bundle)
 ```
 
 ---
@@ -180,43 +99,25 @@ make cli-build       # compiles bin/hajimihomo (self-contained binary)
 
 ### `source/categories.yaml`
 
-Each entry is a leaf category. Key fields:
+Each entry is a leaf category:
 
 ```yaml
 CategoryName:
-  version: 1
   type: domain      # domain | ip | mixed | unknown
-  disabled: false   # set true to exclude from all builds
   sources:
     - repo:blackmatrix7/ios_rule_script/master/rule/Clash/CategoryName/CategoryName.list
-    - https://example.com/rules.txt
   appends: []       # extra rules added on top
   removes: []       # rules removed from resolved set
   override:filename # prefix: replaces source entirely with local overrides/filename
 ```
 
-Source URL schemes: `https://`, `repo:<owner>/<repo>/<branch>/<path>` (fetched from local vendor clone or GitHub raw), `file:<path>` (local file).
-
 ### `source/catalog.yaml`
 
-Defines the 24 policy groups used in generated profiles. Key fields:
-
-```yaml
-groups:
-  proxy/apple:
-    name: "Apple Services"
-    default_action: PROXY
-    members: [Apple, AppStore, iCloud, ...]    # leaf category names
-    excludes: [SomeCategory]                   # subtract from result
-    members_ref: [proxy/google]               # union another catalog group
-    excludes_ref: [direct/cn]                 # subtract another catalog group
-```
+Defines the 24 policy groups. Key fields: `name`, `default_action`, `members` (leaf category names), `excludes`, `members_ref` (union another group), `excludes_ref`.
 
 After editing catalog.yaml, rebuild with `make build-groups` to verify resolution.
 
----
-
-## Adding / Modifying Rules
+### Adding / Modifying Rules
 
 1. **New category**: add entry to `source/categories.yaml` with sources.
 2. **New policy group**: add entry to `source/catalog.yaml` with members.
@@ -227,15 +128,6 @@ After editing catalog.yaml, rebuild with `make build-groups` to verify resolutio
 ---
 
 ## Web Profile Builder
-
-The UI runs at `http://localhost:5173` in dev mode. Key behavior:
-
-- **Kernel selector**: `mihomo` / `mihomo-smart` (vernesong fork, enables `smart` group type) / `sing-box`
-- **Topology**: `full` (LB + url-test per region, ~60 groups) / `standard` (~25) / `minimal` (~12)
-- **Geodata source**: `MetaCubeX (lite)` / `DustinWin (full)` — controls the `geox-url:` block. We do **not** publish our own geoip/geosite; always use a third-party source.
-- **Ruleset format**: `Classic YAML` / `Split YAML` (default) / `Binary .mrs` — controls which dist file tier rule-providers reference. Binary requires CI releases to be published first.
-- **Preset selector**: loaded from `profiles/presets/*.yaml` (transformed at build time by Bun plugin, bundled into app chunk); auto-applies topology, features, and group selection.
-- **Output**: generates a complete standalone mihomo YAML with YAML anchors, DNS, sniffer, TUN block, proxy groups, rule providers, and rules.
 
 ### Generation engine architecture
 
@@ -264,15 +156,7 @@ web/cli.ts (Node APIs: fs, path, readline)
 - **Generation logic** (group building, rule ordering, format switching): edit `web/src/ProfileBuilder.ts`
 - **After any change**: run `cd web && bun test` to verify YAML output is still parseable
 
-**eta template gotcha:** `new Eta({ autoEscape: false, autoTrim: false })` — both options are required. Default `autoTrim: 'nl'` strips newlines after `<%= %>` tags and collapses YAML multiline values onto one line (invalid YAML). Use `-%>` only for intentional newline suppression in conditional blocks.
-
-**TUN block behavior:** `tun.yaml` always has `enable: false`. The UI "Include TUN block" toggle controls whether the block is emitted at all — client wrapper apps (Clash Verge, FlClash) manage the actual enable state.
-
-Rule-provider URLs in generated profiles use jsDelivr CDN (`@ruleset` branch) for YAML split files, and `releases/latest/download/` for binary `.mrs` files (require CI release to exist).
-
-**`geox-url` must point at a third-party geodata source** — we never publish `geoip.mmdb` or `geosite.dat`. Two supported sources:
-- MetaCubeX/meta-rules-dat: `releases/download/latest/geosite.dat`, `geoip-lite.dat`, `country-lite.mmdb`, `GeoLite2-ASN.mmdb`
-- DustinWin/ruleset_geodata: `releases/download/mihomo-geodata/geosite.dat`, `geoip.metadb`, `Country.mmdb`, `Country-ASN.mmdb`
+**eta template gotcha:** `new Eta({ autoEscape: false, autoTrim: false })` — both options are required. Default `autoTrim: 'nl'` strips newlines after `<%= %>` tags and collapses YAML multiline values onto one line (invalid YAML).
 
 ---
 
@@ -286,7 +170,7 @@ All CI targets `dev` branch. Workflows:
 | `pages.yml` | push to `dev` (web/) | Build web app, deploy to `gh-pages` |
 | `validate.yml` | PR to `dev` (source/) | Run `scripts/validate.py` |
 
-The CI Python environment uses Python 3.12 with only `pyyaml` installed. Scripts run under CI must not import `jinja2`, `ruamel.yaml`, or `requests`.
+CI Python: 3.12 + `pyyaml` only. Never import `jinja2`, `ruamel.yaml`, or `requests`.
 
 ---
 
@@ -302,17 +186,13 @@ The CI Python environment uses Python 3.12 with only `pyyaml` installed. Scripts
 
 ## Common Gotchas
 
-- **`dist/` is gitignored** — never commit build output (rulesets, profiles, web app). CDN branches (`ruleset`, `release`) are push-only from CI.
-- **`vendor/` is gitignored** — run `make vendor-sync` to populate it locally.
-- **`web/src/styles.css` is gitignored** — generated by tailwindcss at build/dev time.
-- **`web/dist/categories-index.json` is gitignored** — generated by `gen-data.ts`; served as runtime asset.
-- **No `src/data/` or `src/generated/` folder** — catalog-index and presets are transformed inline by the Bun plugin in `build.ts` and `dev.ts`. Only `categories-index.json` is written to disk (in `dist/`, not `src/`).
-- **YAML anchors are plain text**: `js-yaml`'s `dump()` never emits named anchors. All anchor definitions (`&ProxyProvider`, `&GroupSelect`, etc.) and merge keys (`<<:`) are output as literal strings via `profiles/defaults/*-anchors.yaml` files and TS string builders, not via yaml serialization.
+- **Gitignored paths** — `dist/`, `vendor/`, `web/src/styles.css`, `web/dist/categories-index.json` are all gitignored. CDN branches are push-only from CI.
+- **No `src/data/` or `src/generated/` folder** — catalog-index and presets are transformed inline by the Bun plugin. Only `categories-index.json` is written to disk (in `dist/`, not `src/`).
+- **YAML anchors are plain text**: `js-yaml`'s `dump()` never emits named anchors. All anchor definitions and merge keys are output as literal strings via `profiles/defaults/*-anchors.yaml` and TS string builders.
 - **Rule ordering is critical**: in generated profiles, `direct/cn` domain rules MUST precede proxy service domain rules. Changing rule order in `ProfileBuilder.ts` can cause CN traffic to leak through proxy.
-- **Block groups use named selects, not direct REJECT**: rules never hardcode `REJECT` as a target. Instead, `block/ads` → `🚫 广告拦截` group (select: [REJECT, DIRECT, 默认代理]), etc. This allows dashboard-level toggle.
-- **`smart` group type** is NOT in official MetaCubeX/mihomo — it exists only in the `vernesong/mihomo` fork. The `mihomo-smart` kernel option generates profiles that require this fork.
-- **CI Python scripts**: CI uses system Python 3.12 + pyyaml only. Never add `jinja2`/`ruamel.yaml`/`requests` imports to `scripts/build.py`, `validate.py`, or other CI-run scripts.
-- **Unquoted colon-space in YAML strings** is parsed as a nested mapping. Region filter regexes and other strings containing `: ` must be single-quoted in generated YAML output.
+- **Block groups use named selects, not direct REJECT**: rules never hardcode `REJECT` as a target. Instead, block groups use a select group containing [REJECT, DIRECT, default proxy], allowing dashboard-level toggle.
+- **`smart` group type** is NOT in official MetaCubeX/mihomo — it exists only in the `vernesong/mihomo` fork.
+- **Unquoted colon-space in YAML strings** is parsed as a nested mapping. Strings containing `: ` must be single-quoted in generated YAML output.
 
 ---
 
@@ -323,4 +203,3 @@ The CI Python environment uses Python 3.12 with only `pyyaml` installed. Scripts
 - For web changes: run `make web-build` and `cd web && bun test` to confirm build and tests pass.
 - Commit message format: `type(scope): description` — e.g. `feat(catalog): add proxy/finance group`, `fix(build): correct ip-resolve ordering`.
 - Include `Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>` trailer on AI-assisted commits.
-
