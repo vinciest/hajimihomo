@@ -80,18 +80,17 @@ groups:
 
   - id: proxy/google
     name: 谷歌服务
-    anchor: HK
+    anchor: Proxy
     icon: 'https://fastly.jsdelivr.net/gh/Koolson/Qure@master/IconSet/Color/Google_Search.png'
 
   - id: proxy/apple
     name: 苹果服务
-    anchor: HK
+    anchor: Direct
     icon: 'https://fastly.jsdelivr.net/gh/Koolson/Qure@master/IconSet/Color/Apple.png'
 
   - id: proxy/microsoft
     name: 微软服务
-    anchor: Proxy
-    proxies: [Proxy, 香港策略, 台湾策略, DIRECT]
+    anchor: Direct
     icon: 'https://fastly.jsdelivr.net/gh/Koolson/Qure@master/IconSet/Color/Microsoft.png'
 
   - id: proxy/amazon
@@ -118,6 +117,7 @@ groups:
   - id: proxy/netflix
     name: 奈飞视频
     anchor: US
+    filter: '奈飞|网飞|解锁|NF|(?i)Netflix|VIP.*AGA|VIP.*ECDN|家宽|Residential'
     proxies: [美国均衡-散列, 狮城均衡-散列, 香港均衡-散列, 美国策略, 狮城策略, Proxy, DIRECT]
     icon: 'https://fastly.jsdelivr.net/gh/Koolson/Qure@master/IconSet/Color/Netflix.png'
 

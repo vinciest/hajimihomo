@@ -1,0 +1,61 @@
+dns:
+  enable: true
+  ipv6: true
+  listen: 0.0.0.0:1053
+  enhanced-mode: fake-ip
+  fake-ip-range: 198.18.0.1/16
+  fake-ip-range6: 3fff::/20
+  fake-ip-filter-mode: blacklist
+  fake-ip-filter:
+    - '*.lan'
+    - '*.local'
+    - '*.localhost'
+    - '*.home.arpa'
+    - '+.stun.*.*'
+    - '+.stun.*.*.*'
+    - '+.stun.*.*.*.*'
+    - 'time.*.com'
+    - 'time.*.gov'
+    - 'time.*.apple.com'
+    - '+.ntp.org.cn'
+    - '+.time.edu.cn'
+    - 'ntp.ubuntu.com'
+    - 'time.cloudflare.com'
+    - '+.pool.ntp.org'
+    - '+.msftconnecttest.com'
+    - '+.msftncsi.com'
+    - '+.push.apple.com'
+    - 'swcd.*.apple.com'
+    - 'mesu.apple.com'
+    - '+.miwifi.com'
+    - '+.docker.io'
+    - '+.xbox.com'
+    - '+.xboxlive.com'
+  cache-algorithm: arc
+  respect-rules: false
+  default-nameserver:
+<% for (const ns of it.default_nameserver) { -%>
+    - <%= ns %>
+<% } -%>
+  nameserver:
+<% for (const ns of it.nameserver) { -%>
+    - <%= ns %>
+<% } -%>
+  fallback:
+<% for (const ns of it.fallback) { -%>
+    - <%= ns %>
+<% } -%>
+  fallback-filter:
+    geoip: true
+    geoip-code: CN
+    ipcidr:
+      - 240.0.0.0/4
+<% if (it.nameserver_policy && it.nameserver_policy.length) { -%>
+  nameserver-policy:
+<% for (const entry of it.nameserver_policy) { -%>
+    "<%= entry.domain %>":
+<% for (const ns of entry.servers) { -%>
+      - <%= ns %>
+<% } -%>
+<% } -%>
+<% } -%>

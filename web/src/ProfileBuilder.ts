@@ -22,9 +22,13 @@ import _snifferB64                from '../../profiles/defaults/sniffer.yaml'
 import _tunB64                    from '../../profiles/defaults/tun.yaml'
 import _ruleProviderAnchorsB64    from '../../profiles/rule-provider-anchors.yaml'
 import _proxyGroupStrategyB64     from '../../profiles/group-anchors.yaml'
+import yaml from 'js-yaml'
+import { compileGroupAnchors, compileRuleProviderAnchors, compileFilters, compileGlobalSettings } from './anchor-builder'
+import dnsTmpl from '../../profiles/defaults/dns.yaml.eta' with { type: 'text' }
+import snifferTmpl from '../../profiles/defaults/sniffer.yaml.eta' with { type: 'text' }
 import filtersData                from '../../profiles/filter-anchors.yaml'
 import serviceGroupsData          from '../../profiles/service-groups.yaml'
-import globalSettingsData          from '../../profiles/global-settings.yaml'
+import globalSettingsData         from '../../profiles/global-settings.yaml'
 import {
   CDN_BASE, RELEASES_BASE, RULESETS_URL,
   SPLIT_ORDER, SPLIT_BEHAVIOR,
@@ -33,8 +37,16 @@ import {
   RULE_INTERVAL,
 } from './constants'
 
+const DNS_DEFAULTS = {
+  default_nameserver: ['223.5.5.5', '119.29.29.29'],
+  nameserver: ['https://doh.pub/dns-query', 'https://dns.alidns.com/dns-query'],
+  fallback: ['https://1.1.1.1/dns-query', 'https://8.8.8.8/dns-query', 'https://9.9.9.9/dns-query'],
+  nameserver_policy: [] as Array<{ domain: string; servers: string[] }>,
+}
+
 /** UTF-8-safe base64 decode — works in both browser (TextDecoder) and Node/Bun (Buffer). */
 function _decode(b) {
+  if (typeof b !== 'string') return yaml.dump(b, { lineWidth: -1, noRefs: true })
   if (typeof Buffer !== 'undefined') return Buffer.from(b, 'base64').toString('utf8')
   return new TextDecoder().decode(Uint8Array.from(atob(b), c => c.charCodeAt(0)))
 }
@@ -44,8 +56,8 @@ function _decode(b) {
 const _dns     = () => _decode(_dnsB64)
 const _sniffer = () => _decode(_snifferB64)
 const _tun     = () => _decode(_tunB64)
-const _ruleProviderAnchors    = () => _decode(_ruleProviderAnchorsB64)
-const _proxyGroupStrategyAnchors = () => _decode(_proxyGroupStrategyB64)
+const _ruleProviderAnchors    = () => typeof _ruleProviderAnchorsB64 === 'string' ? _decode(_ruleProviderAnchorsB64) : compileRuleProviderAnchors(_ruleProviderAnchorsB64)
+const _proxyGroupStrategyAnchors = () => typeof _proxyGroupStrategyB64 === 'string' ? _decode(_proxyGroupStrategyB64) : compileGroupAnchors(_proxyGroupStrategyB64)
 
 const _eta = new Eta({ autoEscape: false, autoTrim: false })
 
@@ -58,8 +70,14 @@ const _REJECT_GROUPS = new Set(
   (serviceGroupsData.groups as any[]).filter(g => g.proxies?.[0] === 'REJECT').map(g => g.id)
 )
 
-// Region list derived from filter-anchors.yaml (canonical order: HK/TW/SG/JP/KR/US/EU)
-const _REGIONS = filtersData.regions
+const _pluginActive = 'regions' in filtersData
+const _compiled = _pluginActive ? filtersData : compileFilters(filtersData, {
+  'info-pattern':           (globalSettingsData as any).info_pattern ?? '',
+  'custom-exclude-pattern': (globalSettingsData as any).custom_exclude_pattern ?? '',
+  'HealthUrl':              (globalSettingsData as any).health_url ?? '',
+})
+const _REGIONS = _compiled.regions
+const _F = _compiled
 
 /**
  * Build mihomo rule-providers + ordered rules for selected catalog groups.
@@ -243,15 +261,13 @@ function _proxyGroupAnchorCtx(topology, target) {
     ? ['高速', '可用', '均衡-散列']
     : ['高速', '可用']
   return {
-    filterInfo: filtersData.FilterInfo,
-    filterExclude: filtersData.FilterExclude,
-    regexHighMul: filtersData.HighMulPattern,
+    filterNotify: _F.FilterNotify,
     smart: target === 'mihomo-smart',
     regions: topology === 'global' ? [] : _REGIONS.map(r => {
       return {
         name: r.name,
         key: r.key,
-        filterValue: filtersData[`Filter${r.key}`] || _regionFilterValue(r.pattern ?? ''),
+        filterValue: _F[`Filter${r.key}`] || _regionFilterValue(r.pattern ?? ''),
         proxies: [
           ...leafSuffixes.map(s => `${r.name}${s}`),
           ..._REGIONS.filter(rr => rr.key !== r.key).map(rr => `${rr.name}策略`),
@@ -284,7 +300,7 @@ function _buildProxyGroups(groupIds, { topology, target, features, regionExclude
     name: '通知公告',
     type: 'select',
     'include-all': true,
-    filter: '*FilterInfo',
+    filter: '*FilterNotify',
     icon: `https://fastly.jsdelivr.net/gh/hfg-gmuend/openmoji@15.1.0/color/svg/1F4E2.svg`,
   })
 
@@ -300,7 +316,7 @@ function _buildProxyGroups(groupIds, { topology, target, features, regionExclude
       name: 'Proxy', type: 'select',
       proxies: strategyNames,
       'include-all': true,
-      'exclude-filter': '*FilterExclude',
+      'exclude-filter': '*FilterNotify',
       icon: `${ORZ3_BASE}/Vpn.png`,
     })
   }
@@ -321,16 +337,17 @@ function _buildProxyGroups(groupIds, { topology, target, features, regionExclude
     })
   }
 
-  // ── Block groups (Tier 2) ──────────────────────────────────────────────────
+  // ── Block groups (deferred — pushed after regional groups for readability) ──
+  const _deferredBlock: any[] = []
   for (const gid of rejectGroups) {
     const sg = _sgById.get(gid)
     const name = sg?.name ?? `🚫 ${gid.split('/')[1]}`
     const g: any = { name, type: 'select', proxies: ['REJECT', 'DIRECT'] }
     if (sg?.icon) g.icon = sg.icon
-    groups.push(g)
+    _deferredBlock.push(g)
   }
   if (features?.quic_block)
-    groups.push({ name: '🛡️ 协议拦截', type: 'select', proxies: ['REJECT', 'DIRECT'], icon: `${ICON_BASE}/Reject.png` })
+    _deferredBlock.push({ name: '🛡️ 协议拦截', type: 'select', proxies: ['REJECT', 'DIRECT'], icon: `${ICON_BASE}/Reject.png` })
 
   // ── Service groups (Tier 2) ────────────────────────────────────────────────
   const effectiveMap = {}
@@ -368,6 +385,7 @@ function _buildProxyGroups(groupIds, { topology, target, features, regionExclude
     }
 
     if (sg?.icon) g.icon = sg.icon
+    if (sg?.filter) g.filter = sg.filter
     effectiveMap[gid] = [displayName, g.proxies?.[0] ?? displayName]
     groups.push(g)
   }
@@ -386,7 +404,7 @@ function _buildProxyGroups(groupIds, { topology, target, features, regionExclude
         proxies: leafNames,
         'include-all': true,
         filter,
-        'exclude-filter': '*FilterExclude',
+        'exclude-filter': '*FilterNotify',
       }
       if (r.icon) strat.icon = r.icon
       groups.push(strat)
@@ -396,7 +414,7 @@ function _buildProxyGroups(groupIds, { topology, target, features, regionExclude
     const anchorForAutoType = autoType === 'smart' ? 'GroupSmart' : 'GroupUrlTest'
     // Smart leaf groups need explicit include-all/exclude-filter (GroupSmart doesn't extend GroupBase)
     const smartExtra = autoType === 'smart'
-      ? { 'include-all': true, 'exclude-filter': '*FilterExclude' }
+      ? { 'include-all': true }
       : {}
 
     for (const r of _REGIONS) {
@@ -411,14 +429,8 @@ function _buildProxyGroups(groupIds, { topology, target, features, regionExclude
     }
   }
 
-  // ── 全部 (hidden, all-node collector) ─────────────────────────────────────
-  {
-    const anchorForAutoType = autoType === 'smart' ? 'GroupSmart' : 'GroupUrlTest'
-    const smartExtra = autoType === 'smart'
-      ? { 'include-all': true, 'exclude-filter': '*FilterExclude' }
-      : {}
-    groups.push({ name: '全部', _anchorRef: anchorForAutoType, hidden: true, ...smartExtra })
-  }
+  // ── Block groups (after regional groups for readability) ──────────────────
+  groups.push(..._deferredBlock)
 
   // ── 🐟 漏网之鱼 (catch-all) ────────────────────────────────────────────────
   groups.push({ name: '🐟 漏网之鱼', type: 'select', proxies: ['Proxy', 'DIRECT'], icon: `${ICON_BASE}/Final.png` })
@@ -537,7 +549,7 @@ function _buildRules2(groupIds, catalog, effectiveMap, features, format = 'yaml-
 
 function _renderProxyProviders(subUrls) {
   const anchorText = _tmpl(proxyProviderAnchorsTmpl, {
-    infoPattern: filtersData.InfoPattern,
+    infoPattern: _F.InfoPattern,
     healthUrl: globalSettingsData.health_url,
   })
   if (!subUrls.length) {
@@ -617,13 +629,32 @@ function _renderProxyGroups(groups, topology, target) {
   const anchorBlock = _tmpl(proxyGroupRegionAnchorsTmpl, ctx)
 
   const lines = [anchorBlock.trimEnd(), '', _proxyGroupStrategyAnchors().trimEnd(), '', 'proxy-groups:']
+
+  // Insert blank lines between logical sections for readability
+  const _isBlock = (g) => g.proxies?.[0] === 'REJECT'
+  const _isFinal = (g) => g.name?.includes('漏网之鱼')
+  const _isHidden = (g) => g.hidden
+  const _isRegionStrategy = (g) => g.proxies?.some?.(p => typeof p === 'string' && (p.includes('高速') || p.includes('可用')))
+  // Sort: move 人工智能 to front of service groups for display
+  const _aiIdx = groups.findIndex(g => g.name === '人工智能')
+  if (_aiIdx > 0) {
+    const [ai] = groups.splice(_aiIdx, 1)
+    const _firstService = groups.findIndex(g => !_isBlock(g) && !_isFinal(g) && !_isHidden(g) && !_isRegionStrategy(g))
+    groups.splice(_firstService >= 0 ? _firstService : 0, 0, ai)
+  }
+  let _prevSection = ''
+
   for (const g of groups) {
+    const section = _isBlock(g) || _isFinal(g) ? 'block' : _isHidden(g) ? 'hidden' : _isRegionStrategy(g) ? 'region' : 'service'
+    if (section !== _prevSection && _prevSection !== '') lines.push('')
+    _prevSection = section
+
     const anchor = _groupAnchorName(g)
     const skip   = _GROUP_ANCHOR_COVERS[anchor] || new Set()
     lines.push(`  - name: ${_yamlScalar(g.name)}`)
     lines.push(`    <<: *${anchor}`)
     for (const [k, v] of Object.entries(g)) {
-      if (k === 'name' || k === '_anchorRef' || skip.has(k)) continue
+      if (k === 'name' || k === '_anchorRef' || (skip.has(k) && k !== 'filter')) continue
       if (Array.isArray(v)) {
         lines.push(`    ${k}:`)
         for (const item of v) lines.push(`      - ${_yamlScalar(item)}`)
@@ -664,15 +695,15 @@ function _renderRuleProviders(ruleProviders) {
 }
 
 
-function _buildSections(target, features, geodata, rules) {
+function _buildSections(target, features, geodata, rules, dnsOpts = {}) {
   const smart = target === 'mihomo-smart'
   const u = GEODATA_SOURCES[geodata] || GEODATA_SOURCES.metacubex
   return {
     core:    _tmpl(coreTmpl,     { dashboard: !!features.dashboard, smart }),
     geodata: _tmpl(geodataTmpl,  u),
     profile: _tmpl(profileTmpl,  { smart }),
-    dns:     _dns().trimEnd(),
-    sniffer: _sniffer().trimEnd(),
+    dns:     _tmpl(dnsTmpl, { ...DNS_DEFAULTS, ...dnsOpts }),
+    sniffer: snifferTmpl.trimEnd(),
     tun:     features.tun_enable ? _tun().trimEnd() : '',
     rules:   'rules:\n' + rules.map(r => `  - ${r}`).join('\n'),
   }
@@ -699,6 +730,7 @@ export function buildFullProfile(subUrls: string[], groupIds: string[], catalog:
     regionExcludes = '',
     geodata = 'metacubex',
     format = 'yaml-split',
+    dns: dnsOpts = {},
   } = opts
 
   const { groups, effectiveMap } = _buildProxyGroups(groupIds, { topology, target, features, regionExcludes })
@@ -709,7 +741,7 @@ export function buildFullProfile(subUrls: string[], groupIds: string[], catalog:
     ? '# ⚠️  Requires vernesong/mihomo fork — https://github.com/vernesong/mihomo'
     : '# generated by hajimihomo · https://github.com/cest-la-v/hajimihomo'
 
-  const s = _buildSections(target, features, geodata, rules)
+  const s = _buildSections(target, features, geodata, rules, dnsOpts)
 
   const sections = [
     `${header}\n# topology: ${topology}  target: ${target}  groups: ${groupIds.length}`,
@@ -717,13 +749,13 @@ export function buildFullProfile(subUrls: string[], groupIds: string[], catalog:
     _section('§1  CORE SETTINGS', 'kernel · geodata · profile · DNS · sniffer · TUN'),
     s.core, s.geodata, s.profile, s.dns, s.sniffer, s.tun,
 
-    _section('§2  PROXIES & RULES', 'proxy providers · proxy groups · rule providers · rules'),
+    _section('§2  PROXIES', 'proxy providers · proxy groups'),
     _renderProxyProviders(subUrls),
-    `# ── proxy groups ─────────────────────────────────────────────────────────────\n` +
-      _renderProxyGroups(groups, topology, target),
+    _renderProxyGroups(groups, topology, target),
+
+    _section('§3  RULES', 'rule providers · rules'),
     _renderRuleProviders(ruleProviders),
-    `# ── rules ────────────────────────────────────────────────────────────────────\n` +
-      s.rules,
+    s.rules,
   ]
 
   return sections.join('\n\n')
@@ -746,6 +778,7 @@ export function buildProfileFromCustomGroups(subUrls: string[], customGroups: Cu
     regionExcludes = '',
     geodata  = 'metacubex',
     format   = 'yaml-split',
+    dns: dnsOpts = {},
   } = opts
 
   // Collect all unique group IDs referenced by the custom config
@@ -780,7 +813,7 @@ export function buildProfileFromCustomGroups(subUrls: string[], customGroups: Cu
   const rules = _buildRules2(allGroupIds, catalog, effectiveMap, features, format)
 
   const header = `# generated by hajimihomo (advanced mode) · https://github.com/cest-la-v/hajimihomo`
-  const s = _buildSections(target, features, geodata, rules)
+  const s = _buildSections(target, features, geodata, rules, dnsOpts)
 
   // Merge region groups + custom service groups (deduplicated region groups first)
   const allGroups = [
@@ -794,13 +827,13 @@ export function buildProfileFromCustomGroups(subUrls: string[], customGroups: Cu
     _section('§1  CORE SETTINGS', 'kernel · geodata · profile · DNS · sniffer · TUN'),
     s.core, s.geodata, s.profile, s.dns, s.sniffer, s.tun,
 
-    _section('§2  PROXIES & RULES', 'proxy providers · proxy groups · rule providers · rules'),
+    _section('§2  PROXIES', 'proxy providers · proxy groups'),
     _renderProxyProviders(subUrls),
-    `# ── proxy groups ─────────────────────────────────────────────────────────────\n` +
-      _renderProxyGroups(allGroups, topology, target),
+    _renderProxyGroups(allGroups, topology, target),
+
+    _section('§3  RULES', 'rule providers · rules'),
     _renderRuleProviders(ruleProviders),
-    `# ── rules ────────────────────────────────────────────────────────────────────\n` +
-      s.rules,
+    s.rules,
   ]
 
   return sections.join('\n\n')

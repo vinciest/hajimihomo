@@ -87,9 +87,7 @@ export interface RegionEntry {
 
 export interface FiltersData {
   InfoPattern: string
-  FilterInfo: string
-  FilterExclude: string
-  HighMulPattern: string
+  FilterNotify: string
   regions: RegionEntry[]
   [key: string]: unknown // FilterHK, FilterTW, …
 }
@@ -127,9 +125,7 @@ export function compileFilters(doc: any, globalVars?: Record<string, string>): F
 
   return {
     InfoPattern: vars['info-pattern'] ?? '',
-    FilterInfo: namedAnchors['FilterInfo'] ?? '',
-    FilterExclude: namedAnchors['FilterExclude'] ?? '',
-    HighMulPattern: vars['custom-exclude-pattern'] ?? '',
+    FilterNotify: namedAnchors['FilterNotify'] ?? '',
     regions,
     ...Object.fromEntries(regions.map(r => [`Filter${r.key}`, r.filter])),
   }

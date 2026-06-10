@@ -37,6 +37,12 @@ export interface ProfileOptions {
   geodata?: GeodataSource
   format?: RuleFormat
   subUrls?: string[]
+  dns?: {
+    default_nameserver?: string[]
+    nameserver?: string[]
+    fallback?: string[]
+    nameserver_policy?: Array<{ domain: string; servers: string[] }>
+  }
 }
 
 export interface Sub {

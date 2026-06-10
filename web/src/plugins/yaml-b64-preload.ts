@@ -4,3 +4,4 @@
 import { plugin } from 'bun'
 import { yamlB64Plugin } from './yaml-b64'
 plugin(yamlB64Plugin)
+console.error('PRELOAD WORKS')

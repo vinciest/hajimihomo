@@ -1,7 +1,5 @@
-# ── Regex anchors ─────────────────────────────────────────────────────────────
-_r_info: &FilterInfo '<%= it.filterInfo %>'
-_r_exclude: &FilterExclude '<%= it.filterExclude %>'
-_r_highmul: &RegexHighMul '<%= it.regexHighMul %>'
+# ── Global filter anchors ─────────────────────────────────────────────────────────────
+_r_info: &FilterNotify '<%= it.filterNotify %>'
 <% if (it.regions.length > 0) { %>
 # ── Region filter anchors ─────────────────────────────────────────────────────
 <% for (const r of it.regions) { -%>
@@ -10,7 +8,7 @@ _f_<%= r.key.toLowerCase() %>: &Filter<%= r.key %> '<%= r.filterValue %>'
 <% } -%>
 <% if (it.smart) { %>
 # ── Smart group anchor (vernesong/mihomo fork only) ───────────────────────────
-_g_smart: &GroupSmart {type: smart, interval: 180, lazy: true, uselightgbm: true, url: *HealthUrl}
+_g_smart: &GroupSmart {type: smart, interval: 180, lazy: true, uselightgbm: true, url: *ProxyHealthUrl}
 <% } -%>
 <% if (it.regions.length > 0) { %>
 # ── Service group anchors (region-filtered selects) ───────────────────────────
@@ -21,7 +19,7 @@ _g_sel_<%= r.key.toLowerCase() %>: &GroupSelect<%= r.key %>
   type: select
   include-all: true
   filter: *Filter<%= r.key %>
-  exclude-filter: *FilterExclude
+  exclude-filter: *FilterNotify
   proxies: [<%= r.proxies.join(', ') %>]
 <% } -%>
 

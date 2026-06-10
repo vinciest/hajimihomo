@@ -44,6 +44,7 @@ presets:
       tracking_block: true
       quic_block: true
       load_balance: false
+      dashboard: true
     groups:
       - block/ads
       - block/tracking
@@ -69,6 +70,7 @@ presets:
       tracking_block: true
       quic_block: true
       load_balance: true
+      dashboard: true
     groups:
       - block/ads
       - block/tracking

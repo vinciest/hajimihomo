@@ -8,8 +8,8 @@
 #   object:   actual Clash config fields emitted verbatim
 #
 # Template vars in field values:
-#   {{HealthUrl}}     → emitted as *HealthUrl     (YAML anchor reference)
-#   {{FilterExclude}} → emitted as *FilterExclude  (YAML anchor reference)
+#   {{ProxyHealthUrl}} → emitted as *ProxyHealthUrl (YAML anchor reference)
+#   {{FilterNotify}}  → emitted as *FilterNotify   (YAML anchor reference)
 #
 # § GroupBase
 #   No extends — shared fields inherited by all auto-selection leaf groups.
@@ -22,10 +22,10 @@
 anchors:
   - name: GroupBase
     object:
-      url: '{{HealthUrl}}'
+      url: '{{ProxyHealthUrl}}'
       lazy: true
       include-all: true
-      exclude-filter: '{{FilterExclude}}'
+      exclude-filter: '{{FilterNotify}}'
 
   - name: GroupUrlTest
     extends: GroupBase

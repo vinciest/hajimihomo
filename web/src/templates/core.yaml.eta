@@ -14,8 +14,12 @@ keep-alive-interval: 60
 etag-support: true
 <% if (it.dashboard) { -%>
 external-controller: ':9090'
+external-controller-cors:
+  allow-origins: ["*"]
+  allow-private-network: true
 external-ui: ui
-external-ui-url: 'https://github.com/MetaCubeX/metacubexd/archive/refs/heads/gh-pages.zip'
+external-ui-name: zashboard
+external-ui-url: 'https://github.com/Zephyruso/zashboard/releases/latest/download/dist.zip'
 secret: ''
 <% } -%>
 <% if (it.smart) { -%>

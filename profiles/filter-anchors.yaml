@@ -8,8 +8,7 @@
 #              region anchors carry label: (display name) and icon: (full URL)
 #
 # § How anchors are used in generated profiles:
-#   &FilterInfo     — filter: on 通知公告 (positive match for info/announcement nodes)
-#   &FilterExclude  — exclude-filter: on every proxy leaf group
+#   &FilterNotify   — filter: on 通知公告 + exclude-filter: on every proxy leaf group
 #   &FilterHK/TW/…  — filter: on region leaf and strategy groups
 #
 # § Region order here is the canonical order used throughout the generated profile
@@ -28,43 +27,40 @@ vars:
   eu-pattern: '奥|比|保|克罗地亚|塞|捷|丹|爱沙|芬|法|德|希|匈|爱|意|拉|立|卢|马|荷|波|葡|罗|西|瑞典|英|🇩🇪|🇫🇷|🇬🇧|🇳🇱|🇸🇪|CDG|FRA|AMS|LHR|MUC'
 
 anchors:
-  - name: FilterInfo
+  - name: FilterNotify
     value: '^(?=.*({{info-pattern}})).*$'
-
-  - name: FilterExclude
-    value: '^(?=.*({{info-pattern}}|{{custom-exclude-pattern}})).*$'
 
   - name: FilterHK
     label: 香港
     icon: 'https://fastly.jsdelivr.net/gh/Koolson/Qure@master/IconSet/Color/Hong_Kong.png'
-    value: '^(?=.*(?i)({{hk-pattern}})).*$'
+    value: '^(?=.*(?i)({{hk-pattern}}))(?!.*({{custom-exclude-pattern}})).*$'
 
   - name: FilterTW
     label: 台湾
     icon: 'https://fastly.jsdelivr.net/gh/Koolson/Qure@master/IconSet/Color/Taiwan.png'
-    value: '^(?=.*(?i)({{tw-pattern}})).*$'
+    value: '^(?=.*(?i)({{tw-pattern}}))(?!.*({{custom-exclude-pattern}})).*$'
 
   - name: FilterSG
     label: 狮城
     icon: 'https://fastly.jsdelivr.net/gh/Koolson/Qure@master/IconSet/Color/Singapore.png'
-    value: '^(?=.*(?i)({{sg-pattern}})).*$'
+    value: '^(?=.*(?i)({{sg-pattern}}))(?!.*({{custom-exclude-pattern}})).*$'
 
   - name: FilterJP
     label: 日本
     icon: 'https://fastly.jsdelivr.net/gh/Koolson/Qure@master/IconSet/Color/Japan.png'
-    value: '^(?=.*(?i)({{jp-pattern}}))(?!.*({{jp-exclude}})).*$'
+    value: '^(?=.*(?i)({{jp-pattern}}))(?!.*({{jp-exclude}}|{{custom-exclude-pattern}})).*$'
 
   - name: FilterKR
     label: 韩国
     icon: 'https://fastly.jsdelivr.net/gh/Koolson/Qure@master/IconSet/Color/Korea.png'
-    value: '^(?=.*(?i)({{kr-pattern}})).*$'
+    value: '^(?=.*(?i)({{kr-pattern}}))(?!.*({{custom-exclude-pattern}})).*$'
 
   - name: FilterUS
     label: 美国
     icon: 'https://fastly.jsdelivr.net/gh/Koolson/Qure@master/IconSet/Color/United_States.png'
-    value: '^(?=.*(?i)({{us-pattern}}))(?!.*({{us-exclude}})).*$'
+    value: '^(?=.*(?i)({{us-pattern}}))(?!.*({{us-exclude}}|{{custom-exclude-pattern}})).*$'
 
   - name: FilterEU
     label: 欧盟
     icon: 'https://fastly.jsdelivr.net/gh/Koolson/Qure@master/IconSet/Color/European_Union.png'
-    value: '^(?=.*(?i)({{eu-pattern}})).*$'
+    value: '^(?=.*(?i)({{eu-pattern}}))(?!.*({{custom-exclude-pattern}})).*$'

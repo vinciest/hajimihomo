@@ -340,13 +340,11 @@ describe('P10-P12 improvements', () => {
     expect(out).toContain('filter: *FilterHK')
   })
 
-  test('anchor block contains FilterInfo, FilterExclude and RegexHighMul', () => {
+  test('anchor block contains FilterNotify', () => {
     const out = buildFullProfile(SUBS, GROUPS, catalog, {
       topology: 'regional', target: 'mihomo',
     })
-    expect(out).toContain('&FilterInfo')
-    expect(out).toContain('&FilterExclude')
-    expect(out).toContain('&RegexHighMul')
+    expect(out).toContain('&FilterNotify')
   })
 
   test('HEALTH_URL appears in anchor block', () => {

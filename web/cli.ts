@@ -112,6 +112,13 @@ interface UserConfig {
   hosts_enabled?: boolean
   hosts_include?: string[]
   hosts_exclude?: string[]
+  dns?: {
+    nameserver?: string[]
+    fallback?: string[]
+    default_nameserver?: string[]
+    nameserver_policy?: Array<{ domain: string; servers: string[] }>
+  }
+  overrides?: Record<string, any>
 }
 
 function loadUser(path: string): UserConfig | null {
@@ -160,10 +167,42 @@ ${providerLines}
 # region_excludes: ""    # regex appended to region filter negations
 #                        # e.g. "5x|10x|GB" to exclude bulk-relay nodes
 
+# ── DNS customization ────────────────────────────────────────────────────────
+# dns:
+#   nameserver:          # DoH/DoT servers for domestic domains
+#     - https://doh.pub/dns-query
+#     - https://dns.alidns.com/dns-query
+#   fallback:            # servers for foreign domains (plain IPs work without proxy)
+#     - 8.8.4.4
+#     - 1.1.1.1
+#     - 9.9.9.9
+#   default_nameserver:  # bootstrap resolvers (plain IPs only)
+#     - 223.5.5.5
+#     - 119.29.29.29
+#   nameserver_policy:   # per-domain DNS routing
+#     - domain: "geosite:apple"
+#       servers: [https://doh.pub/dns-query]
+#     - domain: "+.google.com"
+#       servers: [tls://8.8.8.8]
+
 # ── hosts block ───────────────────────────────────────────────────────────────
 hosts_enabled: false     # set true to resolve polluted domains via DoH
 # hosts_include: []      # opt-in specific domains (empty = all polluted ones)
 # hosts_exclude: []      # always skip these domains
+
+# ── profile overrides ────────────────────────────────────────────────────────
+# Merged onto the generated profile. Top-level keys are appended; rules can be
+# inserted at the right priority position.
+# overrides:
+#   hosts:                                 # DNS pollution workarounds
+#     "api.onedrive.com": 13.105.28.18
+#     "skydrivesync.policies.live.net": 13.105.28.18
+#   prepend_rules:                         # inserted BEFORE generated rules (high priority)
+#     - DOMAIN-SUFFIX,push.douban.com,REJECT
+#     - DOMAIN,cdn.jsdelivr.net,Proxy
+#   extra_rules:                           # appended AFTER MATCH (low priority)
+#     - PROCESS-NAME,WeChat,DIRECT
+#     - PROCESS-NAME,小米互联服务,DIRECT
 `
       mkdirSync(dirname(resolve(userPath)), { recursive: true })
       writeFileSync(userPath, content)
@@ -226,9 +265,52 @@ async function main() {
     topology, target, format, geodata,
     features: preset.features || {},
     regionExcludes: user.region_excludes || '',
+    dns: user.dns || {},
   }
 
   let profile = buildFullProfile(subUrls, groupIds, catalog, opts)
+
+  // ── User overrides ──────────────────────────────────────────────────────────
+  // Merge user overrides onto the generated profile. New top-level keys (hosts,
+  // etc.) are appended. For rules, use extra_rules / prepend_rules to inject
+  // custom entries at the right priority position.
+  if (user.overrides) {
+    const ov = user.overrides as Record<string, any>
+    const parts: string[] = []
+
+    // Prepend rules (highest priority — before generated rules)
+    if (Array.isArray(ov.prepend_rules) && ov.prepend_rules.length) {
+      // Insert after the "rules:" line
+      const rulesIdx = profile.indexOf('\nrules:\n')
+      if (rulesIdx !== -1) {
+        const insertPos = rulesIdx + '\nrules:\n'.length
+        const ruleLines = ov.prepend_rules.map((r: string) => `  - ${r}`).join('\n') + '\n'
+        profile = profile.slice(0, insertPos) + ruleLines + profile.slice(insertPos)
+      }
+    }
+
+    // Append rules (lowest priority — after MATCH)
+    if (Array.isArray(ov.extra_rules) && ov.extra_rules.length) {
+      const ruleLines = '\n' + ov.extra_rules.map((r: string) => `  - ${r}`).join('\n')
+      profile = profile.replace(
+        /(  - MATCH,🐟 漏网之鱼)$/,
+        `$1${ruleLines}`
+      )
+    }
+
+    // Merge top-level keys (hosts, etc.)
+    for (const [key, val] of Object.entries(ov)) {
+      if (key === 'prepend_rules' || key === 'extra_rules') continue
+      if (val != null) {
+        const dumped = yaml.dump(val, { lineWidth: -1, noRefs: true, indent: 2 }).trimEnd()
+        // Indent nested content (yaml.dump doesn't indent top-level keys)
+        const indented = dumped.split('\n').map((line: string) => `  ${line}`).join('\n')
+        parts.push(`${key}:\n${indented}`)
+      }
+    }
+
+    if (parts.length) profile += '\n\n' + parts.join('\n\n')
+  }
 
   if (user.hosts_enabled) {
     try {

@@ -1,13 +1,13 @@
 # ── proxy provider anchor ─────────────────────────────────────────────────────
 # Edit here to update all proxy-providers at once (interval, health-check, filter).
 # health_url is sourced from global-settings.yaml; edit it there.
-_h: &HealthUrl '<%= it.healthUrl %>'
+_h: &ProxyHealthUrl '<%= it.healthUrl %>'
 _pp: &ProxyProvider
   type: http
   interval: 86400
   proxy: DIRECT
   health-check:
     enable: true
-    url: *HealthUrl
+    url: *ProxyHealthUrl
     interval: 300
   filter: '^(?!.*(<%= it.infoPattern %>)).*$'
