@@ -14,7 +14,6 @@ import type { CatalogManifest, ProfileOptions, CustomGroup } from './types'
 import { Eta } from 'eta'
 import coreTmpl          from './templates/core.yaml.eta'             with { type: 'text' }
 import geodataTmpl       from './templates/geodata.yaml.eta'          with { type: 'text' }
-import profileTmpl       from './templates/profile.yaml.eta'          with { type: 'text' }
 import proxyProviderAnchorsTmpl    from './templates/proxy-provider-anchors.yaml.eta'      with { type: 'text' }
 import proxyGroupRegionAnchorsTmpl from './templates/proxy-group-region-anchors.yaml.eta'  with { type: 'text' }
 import _dnsB64                    from '../../profiles/defaults/dns.yaml'
@@ -38,9 +37,12 @@ import {
 } from './constants'
 
 const DNS_DEFAULTS = {
-  default_nameserver: ['223.5.5.5', '119.29.29.29'],
+  default_nameserver: ['system', '223.5.5.5 # alidns', '2400:3200::1 # alidns', '119.29.29.29 # tencent public dns', '2402:4e00:: # tencent public dns'],
   nameserver: ['https://doh.pub/dns-query', 'https://dns.alidns.com/dns-query'],
   fallback: ['https://1.1.1.1/dns-query', 'https://8.8.8.8/dns-query', 'https://9.9.9.9/dns-query'],
+  proxy_server_nameserver: ['https://doh.pub/dns-query', 'https://dns.alidns.com/dns-query'],
+  direct_nameserver: ['system', 'https://doh.pub/dns-query', 'https://dns.alidns.com/dns-query'],
+  fake_ip_filter: [] as string[],
   nameserver_policy: [] as Array<{ domain: string; servers: string[] }>,
 }
 
@@ -69,6 +71,8 @@ const _DIRECT_GROUPS = new Set(
 const _REJECT_GROUPS = new Set(
   (serviceGroupsData.groups as any[]).filter(g => g.proxies?.[0] === 'REJECT').map(g => g.id)
 )
+// DNS-only groups — produce rule-providers but no routing rules
+const _DNS_GROUPS = new Set(['dns/fakeip-filter'])
 
 const _pluginActive = 'regions' in filtersData
 const _compiled = _pluginActive ? filtersData : compileFilters(filtersData, {
@@ -284,7 +288,7 @@ function _buildProxyGroups(groupIds, { topology, target, features, regionExclude
   const autoType = _autoType(target)
   const strategyNames = _REGIONS.map(r => `${r.name}策略`)
   const rejectGroups  = groupIds.filter(g => _REJECT_GROUPS.has(g))
-  const serviceGroups = groupIds.filter(g => !_DIRECT_GROUPS.has(g) && !_REJECT_GROUPS.has(g))
+  const serviceGroups = groupIds.filter(g => !_DIRECT_GROUPS.has(g) && !_REJECT_GROUPS.has(g) && !_DNS_GROUPS.has(g))
 
   // Valid leaf/strategy names for the current topology (used to filter preferred lists)
   const leafSuffixes = topology === 'advanced'
@@ -314,7 +318,7 @@ function _buildProxyGroups(groupIds, { topology, target, features, regionExclude
   } else {
     groups.push({
       name: 'Proxy', type: 'select',
-      proxies: strategyNames,
+      proxies: ['Fast', 'Available', ...strategyNames],
       'include-all': true,
       'exclude-filter': '*FilterNotify',
       icon: `${ORZ3_BASE}/Vpn.png`,
@@ -522,7 +526,7 @@ function _buildRules2(groupIds, catalog, effectiveMap, features, format = 'yaml-
 
   // service groups
   for (const gid of groupIds) {
-    if (_DIRECT_GROUPS.has(gid) || _REJECT_GROUPS.has(gid)) continue
+    if (_DIRECT_GROUPS.has(gid) || _REJECT_GROUPS.has(gid) || _DNS_GROUPS.has(gid)) continue
     rules.push(`RULE-SET,${_slug2(gid)},${(effectiveMap[gid] || [_slug2(gid)])[0]}`)
   }
 
@@ -532,7 +536,7 @@ function _buildRules2(groupIds, catalog, effectiveMap, features, format = 'yaml-
       if (gid === 'direct/cn-ips')
         rules.push(`RULE-SET,${_slug2(gid)}-ip,DIRECT,no-resolve`)
     for (const gid of groupIds) {
-      if (_DIRECT_GROUPS.has(gid) || _REJECT_GROUPS.has(gid)) continue
+      if (_DIRECT_GROUPS.has(gid) || _REJECT_GROUPS.has(gid) || _DNS_GROUPS.has(gid)) continue
       if (_needsIpProvider2(gid, catalog))
         rules.push(`RULE-SET,${_slug2(gid)}-ip,${(effectiveMap[gid] || [_slug2(gid)])[0]},no-resolve`)
     }
@@ -635,13 +639,6 @@ function _renderProxyGroups(groups, topology, target) {
   const _isFinal = (g) => g.name?.includes('漏网之鱼')
   const _isHidden = (g) => g.hidden
   const _isRegionStrategy = (g) => g.proxies?.some?.(p => typeof p === 'string' && (p.includes('高速') || p.includes('可用')))
-  // Sort: move 人工智能 to front of service groups for display
-  const _aiIdx = groups.findIndex(g => g.name === '人工智能')
-  if (_aiIdx > 0) {
-    const [ai] = groups.splice(_aiIdx, 1)
-    const _firstService = groups.findIndex(g => !_isBlock(g) && !_isFinal(g) && !_isHidden(g) && !_isRegionStrategy(g))
-    groups.splice(_firstService >= 0 ? _firstService : 0, 0, ai)
-  }
   let _prevSection = ''
 
   for (const g of groups) {
@@ -695,16 +692,16 @@ function _renderRuleProviders(ruleProviders) {
 }
 
 
-function _buildSections(target, features, geodata, rules, dnsOpts = {}) {
+function _buildSections(target, features, geodata, rules, dnsOpts = {}, deployment = 'desktop') {
   const smart = target === 'mihomo-smart'
   const u = GEODATA_SOURCES[geodata] || GEODATA_SOURCES.metacubex
+  const allowLan = deployment === 'router'
   return {
-    core:    _tmpl(coreTmpl,     { dashboard: !!features.dashboard, smart }),
+    core:    _tmpl(coreTmpl,     { smart, allowLan }),
     geodata: _tmpl(geodataTmpl,  u),
-    profile: _tmpl(profileTmpl,  { smart }),
     dns:     _tmpl(dnsTmpl, { ...DNS_DEFAULTS, ...dnsOpts }),
     sniffer: snifferTmpl.trimEnd(),
-    tun:     features.tun_enable ? _tun().trimEnd() : '',
+    tun:     _tun().trimEnd(),
     rules:   'rules:\n' + rules.map(r => `  - ${r}`).join('\n'),
   }
 }
@@ -726,6 +723,7 @@ export function buildFullProfile(subUrls: string[], groupIds: string[], catalog:
   const {
     topology = 'regional',
     target = 'mihomo',
+    deployment = 'desktop',
     features = {},
     regionExcludes = '',
     geodata = 'metacubex',
@@ -741,13 +739,13 @@ export function buildFullProfile(subUrls: string[], groupIds: string[], catalog:
     ? '# ⚠️  Requires vernesong/mihomo fork — https://github.com/vernesong/mihomo'
     : '# generated by hajimihomo · https://github.com/cest-la-v/hajimihomo'
 
-  const s = _buildSections(target, features, geodata, rules, dnsOpts)
+  const s = _buildSections(target, features, geodata, rules, dnsOpts, deployment)
 
   const sections = [
     `${header}\n# topology: ${topology}  target: ${target}  groups: ${groupIds.length}`,
 
-    _section('§1  CORE SETTINGS', 'kernel · geodata · profile · DNS · sniffer · TUN'),
-    s.core, s.geodata, s.profile, s.dns, s.sniffer, s.tun,
+    _section('§1  CORE SETTINGS', 'kernel · geodata · sniffer · TUN · DNS'),
+    s.core, s.geodata, s.sniffer, s.tun, s.dns,
 
     _section('§2  PROXIES', 'proxy providers · proxy groups'),
     _renderProxyProviders(subUrls),
@@ -756,7 +754,7 @@ export function buildFullProfile(subUrls: string[], groupIds: string[], catalog:
     _section('§3  RULES', 'rule providers · rules'),
     _renderRuleProviders(ruleProviders),
     s.rules,
-  ]
+  ].filter(s => s)  // drop empty sections (e.g. TUN when disabled)
 
   return sections.join('\n\n')
 }
@@ -774,14 +772,13 @@ export function buildProfileFromCustomGroups(subUrls: string[], customGroups: Cu
   const {
     topology = 'regional',
     target   = 'mihomo',
+    deployment = 'desktop',
     features = {},
     regionExcludes = '',
     geodata  = 'metacubex',
     format   = 'yaml-split',
     dns: dnsOpts = {},
   } = opts
-
-  // Collect all unique group IDs referenced by the custom config
   const allGroupIds = [...new Set(
     customGroups.flatMap(cg => cg.members
       .filter(m => m.type === 'group')
@@ -813,9 +810,7 @@ export function buildProfileFromCustomGroups(subUrls: string[], customGroups: Cu
   const rules = _buildRules2(allGroupIds, catalog, effectiveMap, features, format)
 
   const header = `# generated by hajimihomo (advanced mode) · https://github.com/cest-la-v/hajimihomo`
-  const s = _buildSections(target, features, geodata, rules, dnsOpts)
-
-  // Merge region groups + custom service groups (deduplicated region groups first)
+  const s = _buildSections(target, features, geodata, rules, dnsOpts, deployment)
   const allGroups = [
     ...regionGroups.filter(g => !serviceGroups.find(sg => sg.name === g.name)),
     ...serviceGroups,
@@ -824,8 +819,8 @@ export function buildProfileFromCustomGroups(subUrls: string[], customGroups: Cu
   const sections = [
     `${header}\n# topology: ${topology}  target: ${target}  custom-groups: ${customGroups.length}`,
 
-    _section('§1  CORE SETTINGS', 'kernel · geodata · profile · DNS · sniffer · TUN'),
-    s.core, s.geodata, s.profile, s.dns, s.sniffer, s.tun,
+    _section('§1  CORE SETTINGS', 'kernel · geodata · sniffer · TUN · DNS'),
+    s.core, s.geodata, s.sniffer, s.tun, s.dns,
 
     _section('§2  PROXIES', 'proxy providers · proxy groups'),
     _renderProxyProviders(subUrls),
@@ -834,7 +829,7 @@ export function buildProfileFromCustomGroups(subUrls: string[], customGroups: Cu
     _section('§3  RULES', 'rule providers · rules'),
     _renderRuleProviders(ruleProviders),
     s.rules,
-  ]
+  ].filter(s => s)
 
   return sections.join('\n\n')
 }

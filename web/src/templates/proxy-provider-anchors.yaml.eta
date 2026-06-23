@@ -10,4 +10,3 @@ _pp: &ProxyProvider
     enable: true
     url: *ProxyHealthUrl
     interval: 300
-  filter: '^(?!.*(<%= it.infoPattern %>)).*$'

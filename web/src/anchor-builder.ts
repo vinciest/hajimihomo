@@ -138,6 +138,17 @@ const _G_BASE_KEY  = '_g_base'
 const _G_TYPE_KEYS = ['_g_ut', '_g_fb', '_g_lb_ch', '_g_lb_rr']
 const _G_SEL_KEY   = '_g_sel'
 
+// Explicit key map for well-known anchor names (controls dummy key order in output).
+// Order here matches the desired output order in group-anchors.yaml.
+const _ANCHOR_KEY_MAP: Record<string, string> = {
+  GroupSelect:   '_g_sel',
+  GroupUrlTest:  '_g_ut',
+  GroupFallback: '_g_fb',
+  GroupLBHash:   '_g_lb_ch',
+  GroupLBRobin:  '_g_lb_rr',
+  GroupSmart:    '_g_smart',
+}
+
 /**
  * Resolve a field value: expand {{Var}} to *Var (YAML anchor reference).
  * Non-string values (booleans, numbers) are stringified as-is.
@@ -147,9 +158,16 @@ function _resolveVal(v: unknown): string {
   return String(v)
 }
 
-/** Emit YAML field lines for an `object:` mapping (all keys, no skip list needed). */
+/** Emit YAML field lines for an `object:` mapping (all keys, no skip list needed).
+ *  URL strings are double-quoted to match conventional mihomo profile formatting. */
 function _emitFields(fields: Record<string, unknown>): string[] {
-  return Object.entries(fields).map(([k, v]) => `  ${k}: ${_resolveVal(v)}`)
+  return Object.entries(fields).map(([k, v]) => {
+    const resolved = _resolveVal(v)
+    if (typeof v === 'string' && !v.startsWith('{{') && /^https?:\/\//.test(v)) {
+      return `  ${k}: "${resolved}"`
+    }
+    return `  ${k}: ${resolved}`
+  })
 }
 
 /**
@@ -173,10 +191,10 @@ export function compileGroupAnchors(doc: any): string {
   let typeIdx = 0
 
   anchors.forEach(a => {
-    const isSelect = a.object?.type === 'select'
-    const dkey = a.extends
-      ? (_G_TYPE_KEYS[typeIdx++] ?? `_g_type_${typeIdx - 1}`)
-      : isSelect ? _G_SEL_KEY : _G_BASE_KEY
+    const dkey = _ANCHOR_KEY_MAP[a.name]
+      ?? (a.extends
+        ? (_G_TYPE_KEYS[typeIdx++] ?? `_g_type_${typeIdx - 1}`)
+        : (a.object?.type === 'select' ? _G_SEL_KEY : _G_BASE_KEY))
 
     parts.push(`${dkey}: &${a.name}`)
     if (a.extends) parts.push(`  <<: *${a.extends}`)

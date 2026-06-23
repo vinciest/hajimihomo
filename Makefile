@@ -78,7 +78,7 @@ generator-cli: web-install   ## Bundle generator-cli.js (Bun CLI, all deps inlin
 	bun build web/cli.ts --outfile dist/generator-cli.js --target bun
 
 profile: web-install    ## Generate profile (PRESET=mini|lite|standard|full)
-	bun run web/cli.ts --preset $(PRESET)
+	cd web && bun run --preload ./src/plugins/yaml-b64-preload.ts cli.ts --preset $(PRESET)
 
 dev: web-install
 	cd web && bun run dev.ts

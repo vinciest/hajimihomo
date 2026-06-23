@@ -1,6 +1,0 @@
-profile:
-  store-selected: true
-  store-fake-ip: true
-<% if (it.smart) { -%>
-  smart-collector-size: 1024
-<% } -%>

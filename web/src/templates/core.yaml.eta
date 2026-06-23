@@ -1,28 +1,56 @@
-mixed-port: 7890
-allow-lan: false
-bind-address: '*'
+port: 7890
+socks-port: 7891
+redir-port: 7892
 mode: rule
-log-level: warning
 ipv6: true
-unified-delay: true
-tcp-concurrent: true
-find-process-mode: strict
-global-client-fingerprint: chrome
-global-ua: mihomo
+find-process-mode: always
+profile:
+  store-selected: true
+  store-fake-ip: true
+<% if (it.smart) { -%>
+  smart-collector-size: 1024
+<% } -%>
+log-level: warning
+
+# ── LAN ─────────────────────────────────────────────────────────────────
+allow-lan: <%= it.allowLan %>
+bind-address: '*'
+lan-allowed-ips:
+  - 127.0.0.1/8
+  - 10.0.0.0/8
+  - 172.16.0.0/12
+  - 192.168.0.0/16
+  - fe80::/10
+
+# ── authentication ─────────────────────────────────────────────────────────────────
+authentication:
+  - mihomo:vinci
+skip-auth-prefixes:
+  - 127.0.0.1/8
+  - ::1/128
+
+# ── connections ──────────────────────────────────────────────────────────────
 keep-alive-idle: 600
 keep-alive-interval: 60
+tcp-concurrent: true
+unified-delay: true
 etag-support: true
-<% if (it.dashboard) { -%>
-external-controller: ':9090'
+global-ua: mihomo
+
+# ── external controller ──────────────────────────────────────────────────────
+external-controller: 127.0.0.1:9090
 external-controller-cors:
-  allow-origins: ["*"]
+  allow-origins:
+    - "*"
   allow-private-network: true
+external-doh-server: /dns/query
 external-ui: ui
 external-ui-name: zashboard
-external-ui-url: 'https://github.com/Zephyruso/zashboard/releases/latest/download/dist.zip'
+external-ui-url: https://github.com/Zephyruso/zashboard/releases/latest/download/dist.zip
 secret: ''
-<% } -%>
 <% if (it.smart) { -%>
+
+# ── smart model (vernesong/mihomo fork only) ─────────────────────────────────
 lgbm-auto-update: true
 lgbm-update-interval: 24
 lgbm-url: 'https://github.com/vernesong/mihomo/releases/download/LightGBM-Model/Model-large.bin'

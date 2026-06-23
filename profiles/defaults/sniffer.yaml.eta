@@ -1,3 +1,4 @@
+# ── sniffer ──────────────────────────────────────────────────────────────────
 sniffer:
   enable: true
   sniff:
@@ -8,6 +9,9 @@ sniffer:
       ports: [443, 8443]
     QUIC:
       ports: [443, 8443]
+  parse-pure-ip: false
+  force-dns-mapping: true
+  override-destination: true
   skip-domain:
-    - 'Mijia Cloud'
-    - '+.push.apple.com'
+    - "Mijia Cloud"
+    - "+.push.apple.com"

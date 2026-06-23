@@ -17,7 +17,8 @@
 #   emit include-all and exclude-filter explicitly.
 #
 # § GroupSelect
-#   No extends — bare select anchor for strategy groups (no include-all, no filter).
+#   No extends — bare select anchor with icon.
+#   Order here controls dummy-key assignment in compileGroupAnchors().
 
 anchors:
   - name: GroupBase
@@ -27,12 +28,19 @@ anchors:
       include-all: true
       exclude-filter: '{{FilterNotify}}'
 
+  - name: GroupSelect
+    extends: GroupBase
+    object:
+      type: select
+      icon: "https://fastly.jsdelivr.net/gh/Orz-3/mini@master/Color/Static.png"
+
   - name: GroupUrlTest
     extends: GroupBase
     object:
       type: url-test
-      interval: 180
+      interval: 300
       tolerance: 50
+      icon: "https://fastly.jsdelivr.net/gh/Orz-3/mini@master/Color/Urltest.png"
 
   - name: GroupFallback
     extends: GroupBase
@@ -40,23 +48,22 @@ anchors:
       type: fallback
       interval: 300
       tolerance: 100
+      icon: "https://fastly.jsdelivr.net/gh/Orz-3/mini@master/Color/Available.png"
 
   - name: GroupLBHash
     extends: GroupBase
     object:
       type: load-balance
       strategy: consistent-hashing
-      interval: 300
+      interval: 600
       tolerance: 100
+      icon: "https://fastly.jsdelivr.net/gh/Orz-3/mini@master/Color/Roundrobin.png"
 
   - name: GroupLBRobin
     extends: GroupBase
     object:
       type: load-balance
       strategy: round-robin
-      interval: 300
+      interval: 600
       tolerance: 100
-
-  - name: GroupSelect
-    object:
-      type: select
+      icon: "https://fastly.jsdelivr.net/gh/Orz-3/mini@master/Color/Roundrobin.png"

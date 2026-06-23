@@ -1,42 +1,38 @@
+# ── DNS ─────────────────────────────────────────────────────────────────────
 dns:
   enable: true
   ipv6: true
+  cache-algorithm: arc
+  prefer-h3: false
+  use-hosts: true
+  use-system-hosts: true
+  respect-rules: true
   listen: 0.0.0.0:1053
   enhanced-mode: fake-ip
   fake-ip-range: 198.18.0.1/16
   fake-ip-range6: 3fff::/20
   fake-ip-filter-mode: blacklist
   fake-ip-filter:
-    - '*.lan'
-    - '*.local'
-    - '*.localhost'
-    - '*.home.arpa'
-    - '+.stun.*.*'
-    - '+.stun.*.*.*'
-    - '+.stun.*.*.*.*'
-    - 'time.*.com'
-    - 'time.*.gov'
-    - 'time.*.apple.com'
-    - '+.ntp.org.cn'
-    - '+.time.edu.cn'
-    - 'ntp.ubuntu.com'
-    - 'time.cloudflare.com'
-    - '+.pool.ntp.org'
-    - '+.msftconnecttest.com'
-    - '+.msftncsi.com'
-    - '+.push.apple.com'
-    - 'swcd.*.apple.com'
-    - 'mesu.apple.com'
-    - '+.miwifi.com'
-    - '+.docker.io'
-    - '+.xbox.com'
-    - '+.xboxlive.com'
-  cache-algorithm: arc
-  respect-rules: false
+    - "geosite:private"
+    - "geosite:connectivity-check"
+    - "geosite:tracker"
+    - "rule-set:dns-fakeip-filter"
+<% for (const entry of it.fake_ip_filter) { -%>
+    - '<%= entry %>'
+<% } -%>
   default-nameserver:
 <% for (const ns of it.default_nameserver) { -%>
     - <%= ns %>
 <% } -%>
+  proxy-server-nameserver:
+<% for (const ns of it.proxy_server_nameserver) { -%>
+    - <%= ns %>
+<% } -%>
+  direct-nameserver:
+<% for (const ns of it.direct_nameserver) { -%>
+    - <%= ns %>
+<% } -%>
+  direct-nameserver-follow-policy: false
   nameserver:
 <% for (const ns of it.nameserver) { -%>
     - <%= ns %>
@@ -50,6 +46,10 @@ dns:
     geoip-code: CN
     ipcidr:
       - 240.0.0.0/4
+    domain:
+      - "+.google.com"
+      - "+.facebook.com"
+      - "+.youtube.com"
 <% if (it.nameserver_policy && it.nameserver_policy.length) { -%>
   nameserver-policy:
 <% for (const entry of it.nameserver_policy) { -%>

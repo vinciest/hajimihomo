@@ -22,10 +22,11 @@ import yaml from 'js-yaml'
 import { buildFullProfile } from './src/ProfileBuilder'
 import { buildHostsBlock } from './hosts.js'
 
-const PRESET_DIR = 'profiles/presets'
-const DEFAULT_USER = 'profiles/user.yaml'
-const DEFAULT_OUTPUT = 'dist/profiles'
-const DEFAULT_CATALOG = 'dist/rulesets.json'
+const ROOT = resolve(import.meta.dir, '..')
+const PRESET_DIR = join(ROOT, 'profiles/presets')
+const DEFAULT_USER = join(ROOT, 'profiles/user.yaml')
+const DEFAULT_OUTPUT = join(ROOT, 'dist/profiles')
+const DEFAULT_CATALOG = join(ROOT, 'dist/rulesets.json')
 
 // ── arg parsing ──────────────────────────────────────────────────────────────
 
@@ -72,6 +73,7 @@ Options:
   --geodata   metacubex|dustinwin                (default: metacubex)
   --target    mihomo|mihomo-smart                (overrides preset)
   --topology  global|regional|advanced           (overrides preset)
+  --deployment router|desktop                    (default: desktop)
   --help      show this message
 
 When no --sub flags and no user.yaml exist, an interactive wizard runs to
@@ -104,6 +106,7 @@ interface UserConfig {
   proxy_providers?: Array<{ name: string; url: string; prefix?: string }>
   target?: string
   topology?: string
+  deployment?: string
   geodata?: string
   format?: string
   extra_groups?: string[]
@@ -242,10 +245,11 @@ async function main() {
     }
   }
 
-  const target   = flags.target   || user.target   || preset.target   || 'mihomo'
-  const topology = flags.topology || user.topology  || preset.topology || 'regional'
-  const geodata  = flags.geodata  || user.geodata   || 'metacubex'
-  const format   = flags.format   || user.format    || 'yaml-split'
+  const target     = flags.target     || user.target     || preset.target     || 'mihomo'
+  const topology   = flags.topology   || user.topology    || preset.topology   || 'regional'
+  const deployment = (flags.deployment || user.deployment || 'desktop') as 'router' | 'desktop'
+  const geodata    = flags.geodata    || user.geodata     || 'metacubex'
+  const format     = flags.format     || user.format      || 'yaml-split'
 
   let groupIds: string[] = preset.groups || []
   if (user.extra_groups?.length) groupIds = [...groupIds, ...user.extra_groups]
@@ -262,7 +266,7 @@ async function main() {
   const catalog = JSON.parse(readFileSync(flags.catalog, 'utf8'))
 
   const opts: Record<string, any> = {
-    topology, target, format, geodata,
+    topology, target, deployment, format, geodata,
     features: preset.features || {},
     regionExcludes: user.region_excludes || '',
     dns: user.dns || {},

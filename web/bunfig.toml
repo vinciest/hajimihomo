@@ -7,6 +7,7 @@ registry = "https://registry.npmjs.org/"
 "react-dom/client" = "preact/compat/client"
 "react/jsx-runtime" = "preact/jsx-runtime"
 
+[run]
 preload = ["./src/plugins/yaml-b64-preload.ts"]
 
 [test]

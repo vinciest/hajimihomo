@@ -7,23 +7,44 @@ interface Props {
 }
 
 export function CoreSection({ state, dispatch }: Props) {
+  function handleDeploymentChange(deployment: 'router' | 'desktop') {
+    const payload: any = { type: 'SET_DEPLOYMENT', deployment }
+    if (deployment === 'router') {
+      payload.tun = true
+      payload.dashboard = true
+    }
+    dispatch(payload)
+  }
+
   return (
     <div className="mb-4">
       <div className="text-xs font-bold uppercase tracking-widest opacity-50 my-3">§1 核心配置</div>
       <div className="space-y-4">
-        <div className="form-control">
-          <label className="label"><span className="label-text">内核 / 输出格式</span></label>
-          <select
-            className="select select-bordered w-full"
-            value={state.target}
-            onChange={e => dispatch({ type: 'SET_TARGET', target: e.target.value as any })}
-          >
-            <option value="mihomo">mihomo (Clash Meta)</option>
-            <option value="mihomo-smart">mihomo-smart (vernesong fork) — smart 分组</option>
-            <option value="singbox">sing-box — 路由规则片段</option>
-          </select>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="form-control">
+            <label className="label"><span className="label-text">内核 / 输出格式</span></label>
+            <select
+              className="select select-bordered w-full"
+              value={state.target}
+              onChange={e => dispatch({ type: 'SET_TARGET', target: e.target.value as any })}
+            >
+              <option value="mihomo">mihomo (Clash Meta)</option>
+              <option value="mihomo-smart">mihomo-smart (vernesong fork) — smart 分组</option>
+              <option value="singbox">sing-box — 路由规则片段</option>
+            </select>
+          </div>
+          <div className="form-control">
+            <label className="label"><span className="label-text">部署环境</span></label>
+            <select
+              className="select select-bordered w-full"
+              value={state.deployment}
+              onChange={e => handleDeploymentChange(e.target.value as any)}
+            >
+              <option value="desktop">桌面客户端（Clash Verge Rev / Mihomo Party 等）</option>
+              <option value="router">路由器（OpenWrt）</option>
+            </select>
+          </div>
         </div>
-
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           {state.target !== 'singbox' && (
             <div className="form-control">

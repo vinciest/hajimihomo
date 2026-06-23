@@ -28,10 +28,12 @@ export type KernelTarget = 'mihomo' | 'mihomo-smart' | 'singbox'
 export type Topology = 'global' | 'regional' | 'advanced'
 export type GeodataSource = 'metacubex' | 'dustinwin'
 export type RuleFormat = 'yaml-classical' | 'yaml-split' | 'binary'
+export type Deployment = 'router' | 'desktop'
 
 export interface ProfileOptions {
   topology?: Topology
   target?: KernelTarget
+  deployment?: Deployment
   features?: Record<string, boolean>
   regionExcludes?: string
   geodata?: GeodataSource

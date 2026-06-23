@@ -6,36 +6,23 @@ dns:
   fake-ip-range: 198.18.0.1/16
   fake-ip-range6: 3fff::/20
   fake-ip-filter-mode: blacklist
-  fake-ip-filter:
-    - '*.lan'
-    - '*.local'
-    - '*.localhost'
-    - '*.home.arpa'
-    - '+.stun.*.*'
-    - '+.stun.*.*.*'
-    - '+.stun.*.*.*.*'
-    - 'time.*.com'
-    - 'time.*.gov'
-    - 'time.*.apple.com'
-    - '+.ntp.org.cn'
-    - '+.time.edu.cn'
-    - 'ntp.ubuntu.com'
-    - 'time.cloudflare.com'
-    - '+.pool.ntp.org'
-    - '+.msftconnecttest.com'
-    - '+.msftncsi.com'
-    - '+.push.apple.com'
-    - 'swcd.*.apple.com'
-    - 'mesu.apple.com'
-    - '+.miwifi.com'
-    - '+.docker.io'
-    - '+.xbox.com'
-    - '+.xboxlive.com'
+  fake-ip-filter: []
   cache-algorithm: arc
-  respect-rules: false
+  respect-rules: true
   default-nameserver:
-    - 223.5.5.5
-    - 119.29.29.29
+    - system
+    - 223.5.5.5 # alidns
+    - 2400:3200::1 # alidns
+    - 119.29.29.29 # tencent public dns
+    - 2402:4e00:: # tencent public dns
+  proxy-server-nameserver:
+    - https://doh.pub/dns-query
+    - https://dns.alidns.com/dns-query
+  direct-nameserver:
+    - system
+    - https://doh.pub/dns-query
+    - https://dns.alidns.com/dns-query
+  direct-nameserver-follow-policy: false
   nameserver:
     - https://doh.pub/dns-query
     - https://dns.alidns.com/dns-query
@@ -48,3 +35,7 @@ dns:
     geoip-code: CN
     ipcidr:
       - 240.0.0.0/4
+    domain:
+      - "+.google.com"
+      - "+.facebook.com"
+      - "+.youtube.com"
