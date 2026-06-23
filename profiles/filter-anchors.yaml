@@ -32,35 +32,35 @@ anchors:
 
   - name: FilterHK
     label: 香港
-    icon: 'https://fastly.jsdelivr.net/gh/Koolson/Qure@master/IconSet/Color/Hong_Kong.png'
+    icon: 'https://fastly.jsdelivr.net/gh/Orz-3/mini@master/Color/HK.png'
     value: '^(?=.*(?i)({{hk-pattern}}))(?!.*({{custom-exclude-pattern}})).*$'
 
   - name: FilterTW
     label: 台湾
-    icon: 'https://fastly.jsdelivr.net/gh/Koolson/Qure@master/IconSet/Color/Taiwan.png'
+    icon: 'https://fastly.jsdelivr.net/gh/Orz-3/mini@master/Color/TW.png'
     value: '^(?=.*(?i)({{tw-pattern}}))(?!.*({{custom-exclude-pattern}})).*$'
 
   - name: FilterSG
     label: 狮城
-    icon: 'https://fastly.jsdelivr.net/gh/Koolson/Qure@master/IconSet/Color/Singapore.png'
+    icon: 'https://fastly.jsdelivr.net/gh/Orz-3/mini@master/Color/SG.png'
     value: '^(?=.*(?i)({{sg-pattern}}))(?!.*({{custom-exclude-pattern}})).*$'
 
   - name: FilterJP
     label: 日本
-    icon: 'https://fastly.jsdelivr.net/gh/Koolson/Qure@master/IconSet/Color/Japan.png'
+    icon: 'https://fastly.jsdelivr.net/gh/Orz-3/mini@master/Color/JP.png'
     value: '^(?=.*(?i)({{jp-pattern}}))(?!.*({{jp-exclude}}|{{custom-exclude-pattern}})).*$'
 
   - name: FilterKR
     label: 韩国
-    icon: 'https://fastly.jsdelivr.net/gh/Koolson/Qure@master/IconSet/Color/Korea.png'
+    icon: 'https://fastly.jsdelivr.net/gh/Orz-3/mini@master/Color/KR.png'
     value: '^(?=.*(?i)({{kr-pattern}}))(?!.*({{custom-exclude-pattern}})).*$'
 
   - name: FilterUS
     label: 美国
-    icon: 'https://fastly.jsdelivr.net/gh/Koolson/Qure@master/IconSet/Color/United_States.png'
+    icon: 'https://fastly.jsdelivr.net/gh/Orz-3/mini@master/Color/US.png'
     value: '^(?=.*(?i)({{us-pattern}}))(?!.*({{us-exclude}}|{{custom-exclude-pattern}})).*$'
 
   - name: FilterEU
     label: 欧盟
-    icon: 'https://fastly.jsdelivr.net/gh/Koolson/Qure@master/IconSet/Color/European_Union.png'
+    icon: 'https://fastly.jsdelivr.net/gh/Orz-3/mini@master/Color/UK.png'
     value: '^(?=.*(?i)({{eu-pattern}}))(?!.*({{custom-exclude-pattern}})).*$'

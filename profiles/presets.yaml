@@ -11,6 +11,7 @@ presets:
       quic_block: false
       load_balance: false
     groups:
+      - dns/fakeip-filter
       - block/ads
       - direct/cn
 
@@ -25,14 +26,15 @@ presets:
       quic_block: false
       load_balance: false
     groups:
+      - dns/fakeip-filter
       - block/ads
       - direct/cn
+      - proxy/ai
+      - proxy/telegram
+      - proxy/youtube
       - proxy/apple
       - proxy/google
       - proxy/microsoft
-      - proxy/youtube
-      - proxy/telegram
-      - proxy/ai
 
   standard:
     label: "Standard"
@@ -46,19 +48,20 @@ presets:
       load_balance: false
       dashboard: true
     groups:
+      - dns/fakeip-filter
       - block/ads
       - block/tracking
       - direct/cn
+      - proxy/ai
+      - proxy/telegram
+      - proxy/twitter
+      - proxy/social
+      - proxy/youtube
+      - proxy/netflix
+      - proxy/streaming
       - proxy/apple
       - proxy/google
       - proxy/microsoft
-      - proxy/youtube
-      - proxy/telegram
-      - proxy/twitter
-      - proxy/netflix
-      - proxy/streaming
-      - proxy/social
-      - proxy/ai
 
   full:
     label: "Full"
@@ -72,22 +75,24 @@ presets:
       load_balance: true
       dashboard: true
     groups:
+      - dns/fakeip-filter
       - block/ads
       - block/tracking
       - direct/cn
       - direct/cn-ips
-      - proxy/apple
-      - proxy/google
-      - proxy/youtube
-      - proxy/microsoft
-      - proxy/amazon
+      - proxy/ai
       - proxy/telegram
       - proxy/twitter
+      - proxy/social
+      - proxy/youtube
       - proxy/netflix
       - proxy/streaming
-      - proxy/social
-      - proxy/ai
       - proxy/gaming
       - proxy/dev
+      - proxy/scholar
       - proxy/finance
       - proxy/news
+      - proxy/apple
+      - proxy/google
+      - proxy/microsoft
+      - proxy/amazon

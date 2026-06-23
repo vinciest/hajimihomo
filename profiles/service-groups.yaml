@@ -76,81 +76,87 @@ groups:
   - id: proxy/ai
     name: 人工智能
     anchor: US
-    icon: 'https://fastly.jsdelivr.net/gh/Koolson/Qure@master/IconSet/Color/AI.png'
+    icon: 'https://fastly.jsdelivr.net/gh/Koolson/Qure@master/IconSet/Color/Rocket.png'
 
   - id: proxy/google
     name: 谷歌服务
     anchor: Proxy
-    icon: 'https://fastly.jsdelivr.net/gh/Koolson/Qure@master/IconSet/Color/Google_Search.png'
+    icon: 'https://cdn.jsdelivr.net/gh/glincker/thesvg@main/public/icons/google/default.svg'
 
   - id: proxy/apple
     name: 苹果服务
     anchor: Direct
-    icon: 'https://fastly.jsdelivr.net/gh/Koolson/Qure@master/IconSet/Color/Apple.png'
+    icon: 'https://cdn.jsdelivr.net/gh/glincker/thesvg@main/public/icons/apple/default.svg'
 
   - id: proxy/microsoft
     name: 微软服务
     anchor: Direct
-    icon: 'https://fastly.jsdelivr.net/gh/Koolson/Qure@master/IconSet/Color/Microsoft.png'
+    icon: 'https://cdn.jsdelivr.net/gh/glincker/thesvg@main/public/icons/microsoft/default.svg'
 
   - id: proxy/amazon
     name: 亚马逊
     anchor: US
-    icon: 'https://fastly.jsdelivr.net/gh/Koolson/Qure@master/IconSet/Color/Amazon.png'
+    icon: 'https://cdn.jsdelivr.net/gh/glincker/thesvg@main/public/icons/amazon/default.svg'
 
   - id: proxy/telegram
     name: 电报消息
     anchor: HK
-    icon: 'https://fastly.jsdelivr.net/gh/Koolson/Qure@master/IconSet/Color/Telegram_X.png'
+    icon: 'https://cdn.jsdelivr.net/gh/glincker/thesvg@main/public/icons/telegram/default.svg'
 
   - id: proxy/twitter
     name: 推特/X
     anchor: US
-    icon: 'https://fastly.jsdelivr.net/gh/Koolson/Qure@master/IconSet/Color/X.png'
+    icon: 'https://cdn.jsdelivr.net/gh/glincker/thesvg@main/public/icons/x/default.svg'
 
   - id: proxy/youtube
     name: 油管视频
     anchor: HK
     proxies: [香港均衡-散列, 台湾均衡-散列, 美国均衡-散列, 香港策略, 台湾策略, 美国策略, Proxy, DIRECT]
-    icon: 'https://fastly.jsdelivr.net/gh/Koolson/Qure@master/IconSet/Color/YouTube.png'
+    icon: 'https://cdn.jsdelivr.net/gh/glincker/thesvg@main/public/icons/youtube/default.svg'
 
   - id: proxy/netflix
     name: 奈飞视频
     anchor: US
     filter: '奈飞|网飞|解锁|NF|(?i)Netflix|VIP.*AGA|VIP.*ECDN|家宽|Residential'
     proxies: [美国均衡-散列, 狮城均衡-散列, 香港均衡-散列, 美国策略, 狮城策略, Proxy, DIRECT]
-    icon: 'https://fastly.jsdelivr.net/gh/Koolson/Qure@master/IconSet/Color/Netflix.png'
+    icon: 'https://cdn.jsdelivr.net/gh/glincker/thesvg@main/public/icons/netflix/default.svg'
 
   - id: proxy/streaming
     name: 流媒体
     anchor: US
     proxies: [美国均衡-散列, 狮城均衡-散列, 香港均衡-散列, 美国策略, 狮城策略, 香港策略, Proxy, DIRECT]
-    icon: 'https://fastly.jsdelivr.net/gh/Koolson/Qure@master/IconSet/Color/Streaming.png'
+    icon: 'https://cdn.jsdelivr.net/gh/glincker/thesvg@main/public/icons/spotify/default.svg'
 
   - id: proxy/social
     name: 社交平台
     anchor: HK
-    icon: 'https://fastly.jsdelivr.net/gh/Koolson/Qure@master/IconSet/Color/PBS.png'
+    icon: 'https://cdn.jsdelivr.net/gh/glincker/thesvg@main/public/icons/discord/default.svg'
 
   - id: proxy/gaming
     name: 游戏平台
     anchor: HK
     proxies: [香港策略, 台湾策略, 日本策略, Proxy, DIRECT]
-    icon: 'https://fastly.jsdelivr.net/gh/Koolson/Qure@master/IconSet/Color/Game.png'
+    icon: 'https://cdn.jsdelivr.net/gh/glincker/thesvg@main/public/icons/steam/default.svg'
 
   - id: proxy/dev
     name: 开发工具
     anchor: Proxy
     proxies: [Proxy, 香港策略, 狮城策略, DIRECT]
-    icon: 'https://fastly.jsdelivr.net/gh/Orz-3/mini@master/Color/github.png'
+    icon: 'https://cdn.jsdelivr.net/gh/glincker/thesvg@main/public/icons/github/default.svg'
 
   - id: proxy/finance
     name: 金融服务
     anchor: HK
-    icon: 'https://fastly.jsdelivr.net/gh/Koolson/Qure@master/IconSet/Color/Finance.png'
+    icon: 'https://cdn.jsdelivr.net/gh/glincker/thesvg@main/public/icons/paypal/default.svg'
 
   - id: proxy/news
     name: 新闻媒体
     anchor: US
     proxies: [美国策略, Proxy, DIRECT]
-    icon: 'https://fastly.jsdelivr.net/gh/Koolson/Qure@master/IconSet/Color/Apple_News.png'
+    icon: 'https://cdn.jsdelivr.net/gh/glincker/thesvg@main/public/icons/bbc/default.svg'
+
+  - id: proxy/scholar
+    name: 学术教育
+    anchor: Proxy
+    proxies: [Proxy, 美国策略, 欧盟策略, DIRECT]
+    icon: 'https://cdn.jsdelivr.net/gh/glincker/thesvg@main/public/icons/google-scholar/default.svg'
