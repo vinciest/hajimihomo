@@ -1,16 +1,24 @@
 import React, { useReducer, useEffect, useState } from 'react'
-import { loadCatalog, presets } from './catalog'
-import type { CatalogManifest, KernelTarget, Topology, GeodataSource, RuleFormat, Sub, CustomGroup } from './types'
+import { loadCatalog, presets, applyCategoryOverrides } from './catalog'
+import type { CatalogManifest, KernelTarget, Topology, GeodataSource, RuleFormat, Deployment, Sub, CustomGroup } from './types'
 import { CoreSection } from './components/CoreSection'
 import { ProxiesSection } from './components/ProxiesSection'
 import { OutputPanel } from './components/OutputPanel'
 import { ModeToggle } from './components/ModeToggle'
+
+// Dev-only: reload when generator.js is rebuilt by the file watcher
+if (typeof window !== 'undefined' && location.hostname === 'localhost') {
+  const es = new EventSource('/__hmr')
+  es.onmessage = () => { console.log('[HMR] generator.js rebuilt, reloading…'); location.reload() }
+  es.onerror = () => { es.close() }
+}
 
 
 export interface AppState {
   mode: 'simple' | 'advanced'
   // §1 Core
   target: KernelTarget
+  deployment: Deployment
   geodata: GeodataSource
   tun: boolean
   dashboard: boolean
@@ -23,6 +31,7 @@ export interface AppState {
   // §2 simple mode
   preset: string
   presetGroups: string[]
+  categoryOverrides: Record<string, boolean>
   // §2 advanced mode
   topology: Topology
   format: RuleFormat
@@ -38,11 +47,13 @@ export interface AppState {
 export type Action =
   | { type: 'SET_MODE'; mode: 'simple' | 'advanced' }
   | { type: 'SET_TARGET'; target: KernelTarget }
+  | { type: 'SET_DEPLOYMENT'; deployment: Deployment; tun?: boolean; dashboard?: boolean }
   | { type: 'SET_GEODATA'; geodata: GeodataSource }
   | { type: 'SET_TUN'; tun: boolean }
   | { type: 'SET_DASHBOARD'; dashboard: boolean }
   | { type: 'SET_SUBS'; subs: Sub[] }
   | { type: 'SET_PRESET'; preset: string; groups: string[]; features?: Record<string, boolean>; topology?: Topology }
+  | { type: 'SET_CATEGORY_OVERRIDE'; categoryId: string; value: boolean }
   | { type: 'SET_TOPOLOGY'; topology: Topology }
   | { type: 'SET_FORMAT'; format: RuleFormat }
   | { type: 'SET_REGION_EXCLUDES'; regionExcludes: string }
@@ -56,6 +67,7 @@ export type Action =
 const initialState: AppState = {
   mode: 'simple',
   target: 'mihomo',
+  deployment: 'desktop',
   geodata: 'metacubex',
   tun: false,
   dashboard: false,
@@ -66,6 +78,7 @@ const initialState: AppState = {
   loadBalance: false,
   preset: 'standard',
   presetGroups: [],
+  categoryOverrides: {},
   topology: 'regional',
   format: 'yaml-split',
   regionExcludes: '',
@@ -80,6 +93,12 @@ function reducer(state: AppState, action: Action): AppState {
   switch (action.type) {
     case 'SET_MODE': return { ...state, mode: action.mode }
     case 'SET_TARGET': return { ...state, target: action.target }
+    case 'SET_DEPLOYMENT': return {
+      ...state,
+      deployment: action.deployment,
+      ...(action.tun != null ? { tun: action.tun } : {}),
+      ...(action.dashboard != null ? { dashboard: action.dashboard } : {}),
+    }
     case 'SET_GEODATA': return { ...state, geodata: action.geodata }
     case 'SET_TUN': return { ...state, tun: action.tun }
     case 'SET_DASHBOARD': return { ...state, dashboard: action.dashboard }
@@ -88,11 +107,16 @@ function reducer(state: AppState, action: Action): AppState {
       ...state,
       preset: action.preset,
       presetGroups: action.groups,
+      categoryOverrides: {},
       topology: action.topology ?? state.topology,
       blockAds: action.features?.ads_block ?? state.blockAds,
       blockTracking: action.features?.tracking_block ?? state.blockTracking,
       blockQuic: action.features?.quic_block ?? state.blockQuic,
       loadBalance: action.features?.load_balance ?? state.loadBalance,
+    }
+    case 'SET_CATEGORY_OVERRIDE': return {
+      ...state,
+      categoryOverrides: { ...state.categoryOverrides, [action.categoryId]: action.value },
     }
     case 'SET_TOPOLOGY': return { ...state, topology: action.topology }
     case 'SET_FORMAT': return { ...state, format: action.format }
@@ -153,6 +177,7 @@ export default function App() {
       const opts = {
         topology: state.topology,
         target: state.target,
+        deployment: state.deployment,
         features,
         geodata: state.geodata,
         format: state.format,
@@ -163,7 +188,9 @@ export default function App() {
       if (state.mode === 'advanced' && state.customGroups.length > 0) {
         output = buildProfileFromCustomGroups(subUrls, state.customGroups, catalog, opts)
       } else {
-        const groupIds = state.mode === 'simple' ? state.presetGroups : state.selectedGroups
+        const groupIds = state.mode === 'simple'
+          ? applyCategoryOverrides(state.presetGroups, state.categoryOverrides)
+          : state.selectedGroups
         output = buildFullProfile(subUrls, groupIds, catalog, opts)
       }
       dispatch({ type: 'SET_OUTPUT', output })
