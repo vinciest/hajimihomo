@@ -9,3 +9,4 @@ bin/
 *.bun-build
 web/src/styles.css
 web/.dev.yaml
+.claude/settings.local.json
