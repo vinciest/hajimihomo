@@ -128,6 +128,21 @@ groups:
       - ChinaMedia         # subtract BiliBili + CCTV from the full CN set
 
   # =========================================================================
+  # DNS — DNS-only groups (no routing rules, only rule-providers)
+  # =========================================================================
+
+  dns/fakeip-filter:
+    name: "Fake-IP Filter"
+    description: >
+      Domains that must resolve to real IPs (bypass fake-ip).
+      Based on DustinWin/ShellCrash fake_ip_filter.list.
+    default_action: DIRECT
+    region: any
+    tags: [dns, fakeip]
+    members:
+      - FakeIPFilter
+
+  # =========================================================================
   # PROXY — services that need a proxy for China-based users
   # =========================================================================
 
@@ -244,6 +259,30 @@ groups:
     members:
       - Twitter
 
+  # --- Social ---
+
+  proxy/social:
+    name: "Social Media"
+    description: >
+      Facebook, Instagram, Reddit, Discord, LinkedIn, TikTok (international),
+      DouYin (Chinese TikTok), ByteDance, Line, Tumblr, Pinterest.
+      Twitter has its own group (proxy/twitter); Telegram has its own group.
+    default_action: PROXY
+    region: any
+    tags: [proxy, social]
+    members:
+      - Facebook
+      - Instagram
+      - Reddit
+      - Discord
+      - LinkedIn
+      - TikTok
+      - DouYin
+      - ByteDance
+      - Line
+      - Tumblr
+      - Pinterest
+
   # --- Streaming ---
 
   proxy/netflix:
@@ -299,30 +338,6 @@ groups:
       - LineTV
       - VidolTV
       - AsianMedia
-
-  # --- Social ---
-
-  proxy/social:
-    name: "Social Media"
-    description: >
-      Facebook, Instagram, Reddit, Discord, LinkedIn, TikTok (international),
-      DouYin (Chinese TikTok), ByteDance, Line, Tumblr, Pinterest.
-      Twitter has its own group (proxy/twitter); Telegram has its own group.
-    default_action: PROXY
-    region: any
-    tags: [proxy, social]
-    members:
-      - Facebook
-      - Instagram
-      - Reddit
-      - Discord
-      - LinkedIn
-      - TikTok
-      - DouYin
-      - ByteDance
-      - Line
-      - Tumblr
-      - Pinterest
 
   # --- AI / LLM ---
 
@@ -451,6 +466,21 @@ groups:
       - ThomsonReuters
       - 9News
 
+  # --- Scholar / Education ---
+
+  proxy/scholar:
+    name: "Scholar & Education"
+    description: >
+      Google Scholar, ResearchGate, academic journals, university portals,
+      and educational platforms. Useful for researchers and students in
+      regions where academic resources are restricted.
+    default_action: PROXY
+    region: any
+    tags: [proxy, scholar, education]
+    members:
+      - GlobalScholar
+      - Scholar
+
   # =========================================================================
   # META — composite bundles for simple configs
   # =========================================================================
@@ -501,6 +531,7 @@ groups:
       - proxy/social
       - proxy/ai
       - proxy/gaming
+      - proxy/scholar
       - proxy/dev
       - proxy/finance
       - proxy/news

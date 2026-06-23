@@ -128,9 +128,14 @@ def parse_lines(text: str) -> Iterator[tuple[str, str]]:
             continue
 
         # bare domain (no RULE_TYPE prefix), only outside yaml payload context
-        if not in_payload and _is_bare_domain(parts[0]):
-            yield ("DOMAIN-SUFFIX", parts[0].strip())
-            continue
+        if not in_payload:
+            # Clash '+.domain' / '*.domain' patterns (e.g. DustinWin/ShellCrash lists)
+            if line.startswith("+.") or line.startswith("*."):
+                yield ("DOMAIN-SUFFIX", line[2:])
+                continue
+            if _is_bare_domain(parts[0]):
+                yield ("DOMAIN-SUFFIX", parts[0].strip())
+                continue
 
         # bare CIDR lines (e.g. Loyalsoldier geoip text files: '1.0.1.0/24')
         bare = parts[0].strip()

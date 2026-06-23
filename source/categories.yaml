@@ -2067,6 +2067,15 @@ Facebook:
   - repo:ACL4SSR/ACL4SSR/master/Clash/Ruleset/Facebook.list
   - repo:ACL4SSR/ACL4SSR/master/Clash/Providers/Ruleset/Facebook.yaml
   - repo:Loyalsoldier/geoip/release/text/facebook.txt
+FakeIPFilter:
+  type: domain
+  sources:
+    - repo:DustinWin/ShellCrash/dev/public/fake_ip_filter.list
+  append:
+    - override:FakeIPApple.append.list
+    - override:FakeIPDocker.append.list
+    - override:FakeIPGaming.append.list
+    - override:FakeIPNTP.append.list
 FanFou:
   type: domain
   sources:
