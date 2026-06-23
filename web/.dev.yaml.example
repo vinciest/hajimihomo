@@ -1,0 +1,41 @@
+# Dev subscription config — copy to .dev.yaml and customize.
+# Used by `make dev-local` to serve a mock subscription at http://localhost:5173/sub
+#
+# Usage:
+#   1. make build-groups            # build rule sets to dist/mihomo/
+#   2. cp web/.dev.yaml.example web/.dev.yaml
+#   3. Edit .dev.yaml (add your subscription URL, pick preset)
+#   4. make dev-local               # starts dev server with local rulesets
+#   5. Add http://localhost:5173/sub as remote subscription in Clash Verge Rev
+#   6. Refresh subscription — profile loads with local rule files
+
+preset: standard
+
+# Subscription URLs from your proxy provider (generates proxy-providers in profile).
+# Leave empty/commented to generate a profile without proxy-providers.
+# subs:
+#   - https://your-airport.com/sub?token=xxx
+
+# Override preset groups (optional — omit to use preset's default group list).
+# groups:
+#   - dns/fakeip-filter
+#   - block/ads
+#   - direct/cn
+#   - proxy/ai
+#   - proxy/telegram
+
+# DNS servers (optional — uses profile defaults if omitted).
+# dns:
+#   nameserver:
+#     - https://doh.pub/dns-query
+#     - https://dns.alidns.com/dns-query
+#   fallback:
+#     - 8.8.8.8
+#     - 1.1.1.1
+
+# Profile overrides (same format as cli.ts user.yaml).
+# overrides:
+#   prepend_rules:
+#     - DOMAIN-SUFFIX,example.com,REJECT
+#   extra_rules:
+#     - PROCESS-NAME,WeChat,DIRECT

@@ -8,3 +8,4 @@ source/hosts/.cache.json
 bin/
 *.bun-build
 web/src/styles.css
+web/.dev.yaml
